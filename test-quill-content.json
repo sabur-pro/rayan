@@ -1,0 +1,117 @@
+{
+  "ops": [
+    {
+      "insert": "Пример контента Quill"
+    },
+    {
+      "attributes": {
+        "header": 1
+      },
+      "insert": "\n"
+    },
+    {
+      "insert": "Это пример "
+    },
+    {
+      "attributes": {
+        "bold": true
+      },
+      "insert": "Quill Delta"
+    },
+    {
+      "insert": " формата, который теперь поддерживается в системе viewers.\n\nОсновные возможности:"
+    },
+    {
+      "attributes": {
+        "header": 2
+      },
+      "insert": "\n"
+    },
+    {
+      "insert": "Форматирование текста"
+    },
+    {
+      "attributes": {
+        "list": "bullet"
+      },
+      "insert": "\n"
+    },
+    {
+      "insert": "Списки"
+    },
+    {
+      "attributes": {
+        "list": "bullet"
+      },
+      "insert": "\n"
+    },
+    {
+      "insert": "Блоки кода"
+    },
+    {
+      "attributes": {
+        "list": "bullet"
+      },
+      "insert": "\n"
+    },
+    {
+      "insert": "Изображения"
+    },
+    {
+      "attributes": {
+        "list": "bullet"
+      },
+      "insert": "\n"
+    },
+    {
+      "insert": "\nПример кода:"
+    },
+    {
+      "attributes": {
+        "header": 3
+      },
+      "insert": "\n"
+    },
+    {
+      "insert": "const quill = new Quill('#editor');"
+    },
+    {
+      "attributes": {
+        "code-block": true
+      },
+      "insert": "\n"
+    },
+    {
+      "insert": "quill.setContents(deltaContent);"
+    },
+    {
+      "attributes": {
+        "code-block": true
+      },
+      "insert": "\n\n"
+    },
+    {
+      "insert": "Это "
+    },
+    {
+      "attributes": {
+        "italic": true,
+        "color": "#0066cc"
+      },
+      "insert": "красиво"
+    },
+    {
+      "insert": " и "
+    },
+    {
+      "attributes": {
+        "underline": true,
+        "background": "#66b966"
+      },
+      "insert": "удобно"
+    },
+    {
+      "insert": "!\n"
+    }
+  ]
+}
