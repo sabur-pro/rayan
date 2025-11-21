@@ -41,7 +41,7 @@ export const TestResultsScreen: React.FC<TestResultsScreenProps> = ({
 
   const percentage = Math.round((result.correctAnswers / result.totalQuestions) * 100);
   const { width } = Dimensions.get('window');
-  const circleSize = Math.min(width * 0.55, 220);
+  const circleSize = Math.min(width * 0.45, 180);
 
   useEffect(() => {
     Animated.parallel([
@@ -231,7 +231,7 @@ export const TestResultsScreen: React.FC<TestResultsScreenProps> = ({
             <View style={[styles.modernStatCard, styles.modernStatCorrect]}>
               <View style={styles.modernStatIconWrapper}>
                 <View style={styles.modernStatIconBg}>
-                  <Ionicons name="checkmark-circle" size={32} color="#10B981" />
+                  <Ionicons name="checkmark-circle" size={24} color="#10B981" />
                 </View>
               </View>
               <View style={styles.modernStatContent}>
@@ -252,7 +252,7 @@ export const TestResultsScreen: React.FC<TestResultsScreenProps> = ({
             <View style={[styles.modernStatCard, styles.modernStatIncorrect]}>
               <View style={styles.modernStatIconWrapper}>
                 <View style={styles.modernStatIconBg}>
-                  <Ionicons name="close-circle" size={32} color="#EF4444" />
+                  <Ionicons name="close-circle" size={24} color="#EF4444" />
                 </View>
               </View>
               <View style={styles.modernStatContent}>
@@ -275,7 +275,7 @@ export const TestResultsScreen: React.FC<TestResultsScreenProps> = ({
             <View style={[styles.modernStatCard, styles.modernStatSkipped, { marginTop: 12 }]}>
               <View style={styles.modernStatIconWrapper}>
                 <View style={styles.modernStatIconBg}>
-                  <Ionicons name="remove-circle" size={32} color="#F59E0B" />
+                  <Ionicons name="remove-circle" size={24} color="#F59E0B" />
                 </View>
               </View>
               <View style={styles.modernStatContent}>
@@ -337,21 +337,21 @@ export const TestResultsScreen: React.FC<TestResultsScreenProps> = ({
                       <View style={styles.questionResultBadge}>
                         {isCorrect ? (
                           <>
-                            <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+                            <Ionicons name="checkmark-circle" size={14} color="#10B981" />
                             <Text style={[styles.questionResultStatus, { color: '#10B981' }]}>
                               {t('test.correct')}
                             </Text>
                           </>
                         ) : isAnswered ? (
                           <>
-                            <Ionicons name="close-circle" size={16} color="#EF4444" />
+                            <Ionicons name="close-circle" size={14} color="#EF4444" />
                             <Text style={[styles.questionResultStatus, { color: '#EF4444' }]}>
                               {t('test.incorrect')}
                             </Text>
                           </>
                         ) : (
                           <>
-                            <Ionicons name="remove-circle" size={16} color="#F59E0B" />
+                            <Ionicons name="remove-circle" size={14} color="#F59E0B" />
                             <Text style={[styles.questionResultStatus, { color: '#F59E0B' }]}>
                               {t('test.skipped')}
                             </Text>
@@ -375,9 +375,9 @@ export const TestResultsScreen: React.FC<TestResultsScreenProps> = ({
                             isUserAnswer && !isCorrectAnswer && styles.answerResultIncorrect,
                           ]}
                         >
-                          {isCorrectAnswer && <Ionicons name="checkmark" size={18} color="#10B981" />}
+                          {isCorrectAnswer && <Ionicons name="checkmark" size={14} color="#10B981" />}
                           {isUserAnswer && !isCorrectAnswer && (
-                            <Ionicons name="close" size={18} color="#EF4444" />
+                            <Ionicons name="close" size={14} color="#EF4444" />
                           )}
                           <Text
                             style={[
@@ -424,8 +424,8 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
       alignItems: 'center',
       justifyContent: 'space-between',
       paddingHorizontal: 20,
-      paddingVertical: 16,
-      paddingTop: 50,
+      paddingVertical: 10,
+      paddingTop: 12,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
       backgroundColor: colors.surface,
@@ -434,12 +434,12 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
       flex: 1,
     },
     headerTitle: {
-      fontSize: 24,
+      fontSize: 22,
       fontWeight: '700',
       color: colors.text,
     },
     headerSubtitle: {
-      fontSize: 14,
+      fontSize: 12,
       color: colors.textSecondary,
       marginTop: 2,
     },
@@ -458,9 +458,9 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
     heroCard: {
       alignItems: 'center',
       backgroundColor: colors.surface,
-      borderRadius: 28,
-      padding: 32,
-      marginBottom: 24,
+      borderRadius: 20,
+      padding: 20,
+      marginBottom: 20,
       borderWidth: 2,
       borderColor: colors.border,
       shadowColor: '#000',
@@ -472,7 +472,7 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
     progressCircleContainer: {
       alignItems: 'center',
       justifyContent: 'center',
-      marginBottom: 28,
+      marginBottom: 20,
     },
     progressCircleOuter: {
       position: 'relative',
@@ -493,16 +493,16 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
       justifyContent: 'center',
     },
     centerEmoji: {
-      fontSize: 56,
-      marginBottom: 12,
-    },
-    centerPercentage: {
-      fontSize: 52,
-      fontWeight: '900',
+      fontSize: 48,
       marginBottom: 8,
     },
+    centerPercentage: {
+      fontSize: 44,
+      fontWeight: '900',
+      marginBottom: 6,
+    },
     centerGrade: {
-      fontSize: 20,
+      fontSize: 16,
       fontWeight: '700',
       textTransform: 'uppercase',
     },
@@ -511,7 +511,7 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
       alignItems: 'center',
       justifyContent: 'space-around',
       width: '100%',
-      paddingTop: 24,
+      paddingTop: 16,
       borderTopWidth: 2,
       borderTopColor: colors.border,
     },
@@ -519,20 +519,20 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
       alignItems: 'center',
     },
     scoreStatValue: {
-      fontSize: 26,
+      fontSize: 20,
       fontWeight: '700',
       color: colors.text,
-      marginBottom: 6,
+      marginBottom: 4,
     },
     scoreStatLabel: {
-      fontSize: 12,
+      fontSize: 11,
       color: colors.textSecondary,
       fontWeight: '600',
       textTransform: 'uppercase',
     },
     scoreStatDivider: {
-      width: 2,
-      height: 40,
+      width: 1,
+      height: 32,
       backgroundColor: colors.border,
     },
     modernStatsContainer: {
@@ -545,8 +545,8 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
     modernStatCard: {
       flex: 1,
       backgroundColor: colors.surface,
-      borderRadius: 20,
-      padding: 20,
+      borderRadius: 16,
+      padding: 14,
       borderWidth: 2,
       borderColor: colors.border,
       overflow: 'hidden',
@@ -565,27 +565,27 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
       borderColor: '#F59E0B' + '30',
     },
     modernStatIconWrapper: {
-      marginBottom: 16,
+      marginBottom: 10,
     },
     modernStatIconBg: {
-      width: 56,
-      height: 56,
-      borderRadius: 28,
+      width: 44,
+      height: 44,
+      borderRadius: 22,
       backgroundColor: colors.background,
       justifyContent: 'center',
       alignItems: 'center',
     },
     modernStatContent: {
-      marginBottom: 12,
+      marginBottom: 8,
     },
     modernStatValue: {
-      fontSize: 36,
+      fontSize: 28,
       fontWeight: '900',
       color: colors.text,
-      marginBottom: 4,
+      marginBottom: 2,
     },
     modernStatLabel: {
-      fontSize: 13,
+      fontSize: 11,
       color: colors.textSecondary,
       fontWeight: '700',
       textTransform: 'uppercase',
@@ -607,27 +607,27 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
       marginBottom: 16,
     },
     sectionTitle: {
-      fontSize: 20,
+      fontSize: 18,
       fontWeight: '700',
       color: colors.text,
     },
     questionResult: {
       backgroundColor: colors.surface,
-      borderRadius: 16,
-      padding: 18,
-      marginBottom: 16,
+      borderRadius: 14,
+      padding: 14,
+      marginBottom: 12,
       borderWidth: 2,
       borderColor: colors.border,
     },
     questionResultHeader: {
       flexDirection: 'row',
-      marginBottom: 14,
-      gap: 12,
+      marginBottom: 12,
+      gap: 10,
     },
     questionResultNumber: {
-      width: 38,
-      height: 38,
-      borderRadius: 19,
+      width: 32,
+      height: 32,
+      borderRadius: 16,
       justifyContent: 'center',
       alignItems: 'center',
     },
@@ -641,7 +641,7 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
       backgroundColor: '#F59E0B',
     },
     questionResultNumberText: {
-      fontSize: 15,
+      fontSize: 13,
       fontWeight: '700',
       color: '#FFF',
     },
@@ -649,11 +649,11 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
       flex: 1,
     },
     questionResultText: {
-      fontSize: 15,
+      fontSize: 13,
       fontWeight: '600',
       color: colors.text,
-      marginBottom: 10,
-      lineHeight: 21,
+      marginBottom: 8,
+      lineHeight: 18,
     },
     questionResultBadge: {
       flexDirection: 'row',
@@ -661,19 +661,19 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
       gap: 6,
     },
     questionResultStatus: {
-      fontSize: 13,
+      fontSize: 11,
       fontWeight: '700',
     },
     questionResultAnswers: {
-      gap: 10,
+      gap: 8,
     },
     answerResult: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: colors.background,
-      padding: 14,
-      borderRadius: 12,
-      gap: 10,
+      padding: 10,
+      borderRadius: 10,
+      gap: 8,
     },
     answerResultCorrect: {
       backgroundColor: '#10B981' + '15',
@@ -687,10 +687,10 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
     },
     answerResultText: {
       flex: 1,
-      fontSize: 14,
+      fontSize: 12,
       color: colors.text,
       fontWeight: '500',
-      lineHeight: 19,
+      lineHeight: 16,
     },
     answerResultTextCorrect: {
       color: '#10B981',
@@ -721,14 +721,14 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: colors.primary + '15',
-      padding: 18,
-      borderRadius: 16,
+      padding: 14,
+      borderRadius: 14,
       gap: 8,
       borderWidth: 2,
       borderColor: colors.primary,
     },
     retryButtonText: {
-      fontSize: 16,
+      fontSize: 14,
       fontWeight: '700',
       color: colors.primary,
     },
@@ -737,13 +737,13 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: colors.background,
-      padding: 18,
-      borderRadius: 16,
+      padding: 14,
+      borderRadius: 14,
       borderWidth: 2,
       borderColor: colors.border,
     },
     closeButtonText: {
-      fontSize: 16,
+      fontSize: 14,
       fontWeight: '700',
       color: colors.text,
     },

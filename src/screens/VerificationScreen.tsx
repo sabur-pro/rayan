@@ -70,7 +70,7 @@ export const VerificationScreen: React.FC<VerificationScreenProps> = ({
 
     // Auto-verify when all digits are entered
     if (newCode.every(digit => digit !== '') && !isLoading) {
-      handleVerify();
+      handleVerify(newCode);
     }
   };
 
@@ -80,8 +80,8 @@ export const VerificationScreen: React.FC<VerificationScreenProps> = ({
     }
   };
 
-  const handleVerify = async () => {
-    const verifyCode = code.join('');
+  const handleVerify = async (currentCode: string[] = code) => {
+    const verifyCode = currentCode.join('');
     if (verifyCode.length !== 4) {
       showToast.error('Please enter the 4-digit code', t('common.error'));
       return;

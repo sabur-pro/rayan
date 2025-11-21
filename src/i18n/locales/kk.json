@@ -79,7 +79,9 @@
     "selectSemester": "Семестрді таңдаңыз",
     "comingSoon": "Жақын арада",
     "featureComingSoon": "Бұл мүмкіндік жақын арада қолжетімді болады",
-    "aboutApp": "Rayan қосымшасы туралы"
+    "aboutApp": "Rayan қосымшасы туралы",
+    "stepWithTotal": "{{current}} қадам {{total}}-ден",
+    "cycles": "Циклдар"
   },
   "home": {
     "welcome": "Қош келдіңіз",

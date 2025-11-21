@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Alert,
   Platform,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../contexts/ThemeContext';
@@ -17,55 +18,72 @@ import { getThemeColors } from '../theme/colors';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { TextInput } from 'react-native';
-import { SubscriptionPlan } from '../types/subscription';
+import { SubscriptionPlan, Subscription } from '../types/subscription';
 import { apiService } from '../services/api';
 import { showToast } from '../utils/toast';
+import { SubscriptionModal } from '../components/SubscriptionModal';
 
 interface SubscriptionScreenProps {
   accessToken: string;
+  subscription: Subscription | null;
+  freeTrialInfo: {
+    hasFreeTrial: boolean;
+    isExpired: boolean;
+    daysRemaining: number;
+    expiryDate: Date | null;
+  } | null;
   onSubscriptionComplete: (tokens: { access_token: string; refresh_token: string; expires_in: number }) => void;
+  onRefreshStatus: () => Promise<void>;
   onBack?: () => void;
 }
 
+// Helper function to format remaining time
+const formatRemainingTime = (daysRemaining: number): { days: number; hours: number; minutes: number } => {
+  const now = new Date();
+  const endDate = new Date(now.getTime() + daysRemaining * 24 * 60 * 60 * 1000);
+  const diff = endDate.getTime() - now.getTime();
+  
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  
+  return { days, hours, minutes };
+};
+
 // Default subscription plans
-const SUBSCRIPTION_PLANS: readonly SubscriptionPlan[] = [
+const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   {
     id: '1_month',
     duration: 30,
-    price: 50,
-    title: '1 Month',
-    description: 'Perfect for trying out',
+    price: 19.99,
+    title: '1_month_title',
+    description: '1_month_desc',
     features: ['fullAccess', 'aiAssistant', 'offlineMode'],
-  },
-  {
-    id: '3_months',
-    duration: 90,
-    price: 120,
-    title: '3 Months',
-    description: 'Most popular choice',
-    features: ['fullAccess', 'aiAssistant', 'offlineMode', 'prioritySupport'],
   },
   {
     id: '6_months',
     duration: 180,
-    price: 200,
-    title: '6 Months',
-    description: 'Best value for money',
-    features: ['fullAccess', 'aiAssistant', 'offlineMode', 'prioritySupport', 'noAds'],
+    price: 99.99,
+    title: '6_months_title',
+    description: '6_months_desc',
+    features: ['fullAccess', 'aiAssistant', 'offlineMode', 'prioritySupport'],
   },
   {
     id: '1_year',
     duration: 365,
-    price: 350,
-    title: '12 Months',
-    description: 'Ultimate plan',
+    price: 199.99,
+    title: '12_months_title',
+    description: '12_months_desc',
     features: ['fullAccess', 'aiAssistant', 'offlineMode', 'prioritySupport', 'noAds'],
   },
 ];
 
 export const SubscriptionScreen: React.FC<SubscriptionScreenProps> = ({
   accessToken,
+  subscription,
+  freeTrialInfo,
   onSubscriptionComplete,
+  onRefreshStatus,
   onBack,
 }) => {
   const { t } = useTranslation();
@@ -78,6 +96,25 @@ export const SubscriptionScreen: React.FC<SubscriptionScreenProps> = ({
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCheckingStatus, setIsCheckingStatus] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+
+  // Payment number (номер для перевода)
+  const PAYMENT_NUMBER = '+992970074343';
+
+  const handleCopyNumber = async () => {
+    await Clipboard.setStringAsync(PAYMENT_NUMBER);
+    showToast.success(t('subscription.numberCopied'), t('common.success'));
+  };
+
+  // Show modal when needed
+  useEffect(() => {
+    // Only show modal for pending subscriptions, not for free trial
+    if (subscription?.status === 'pending') {
+      setShowModal(true);
+    } else {
+      setShowModal(false);
+    }
+  }, [subscription]);
 
   const handleSelectPlan = (plan: SubscriptionPlan) => {
     setSelectedPlan(plan);
@@ -156,42 +193,11 @@ export const SubscriptionScreen: React.FC<SubscriptionScreenProps> = ({
 
       showToast.success(t('subscription.subscriptionCreated'), t('common.success'));
 
-      // Start polling for subscription status
-      setIsCheckingStatus(true);
-      const result = await apiService.pollSubscriptionStatus(accessToken, 30, 2000);
-
-      if (result.status === 'active' && result.subscription) {
-        // Get subscription with tokens
-        const subscriptionWithTokens = await apiService.getCurrentSubscription(true, accessToken);
-        
-        if (subscriptionWithTokens.access_token && subscriptionWithTokens.refresh_token && subscriptionWithTokens.expires_in) {
-          showToast.success(t('subscription.activeMessage'), t('subscription.active'));
-          onSubscriptionComplete({
-            access_token: subscriptionWithTokens.access_token,
-            refresh_token: subscriptionWithTokens.refresh_token,
-            expires_in: subscriptionWithTokens.expires_in,
-          });
-        } else {
-          // Subscription is active but tokens not available yet
-          Alert.alert(
-            t('subscription.pending'),
-            t('subscription.pendingMessage'),
-            [{ text: t('common.ok'), onPress: () => {} }]
-          );
-        }
-      } else if (result.status === 'pending') {
-        Alert.alert(
-          t('subscription.pending'),
-          t('subscription.pendingMessage'),
-          [{ text: t('common.ok'), onPress: () => {} }]
-        );
-      } else {
-        Alert.alert(
-          t('subscription.timeout'),
-          t('subscription.timeoutMessage'),
-          [{ text: t('common.ok'), onPress: () => {} }]
-        );
-      }
+      // Обновляем статус подписки через onRefreshStatus
+      await onRefreshStatus();
+      
+      // Показываем модалку pending - не переходим в приложение
+      setShowModal(true);
     } catch (error: any) {
       console.error('Error creating subscription:', error);
       showToast.error(
@@ -229,13 +235,29 @@ export const SubscriptionScreen: React.FC<SubscriptionScreenProps> = ({
             <Text style={styles.title}>{t('subscription.title')}</Text>
             <Text style={styles.subtitle}>{t('subscription.subtitle')}</Text>
           </View>
+          <TouchableOpacity
+            style={styles.refreshButton}
+            onPress={async () => {
+              setIsCheckingStatus(true);
+              await onRefreshStatus();
+              setIsCheckingStatus(false);
+              showToast.success(t('subscription.statusUpdated'), t('common.success'));
+            }}
+            disabled={isCheckingStatus}
+          >
+            {isCheckingStatus ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Ionicons name="refresh" size={24} color={colors.primary} />
+            )}
+          </TouchableOpacity>
         </View>
 
         {/* Subscription Plans */}
         {!selectedPlan ? (
           <View style={styles.plansContainer}>
             <Text style={styles.sectionTitle}>{t('subscription.selectPlan')}</Text>
-            {SUBSCRIPTION_PLANS.map((plan) => (
+            {SUBSCRIPTION_PLANS.map((plan: SubscriptionPlan) => (
               <TouchableOpacity
                 key={plan.id}
                 style={[
@@ -245,7 +267,7 @@ export const SubscriptionScreen: React.FC<SubscriptionScreenProps> = ({
                 onPress={() => handleSelectPlan(plan)}
               >
                 <View style={styles.planHeader}>
-                  <Text style={styles.planTitle}>{plan.title}</Text>
+                  <Text style={styles.planTitle}>{t(`subscription.${plan.title}`)}</Text>
                   <View style={styles.planPriceContainer}>
                     <Text style={styles.planPrice}>{plan.price} TJS</Text>
                     <Text style={styles.planDuration}>
@@ -253,7 +275,7 @@ export const SubscriptionScreen: React.FC<SubscriptionScreenProps> = ({
                     </Text>
                   </View>
                 </View>
-                <Text style={styles.planDescription}>{plan.description}</Text>
+                <Text style={styles.planDescription}>{t(`subscription.${plan.description}`)}</Text>
                 <View style={styles.featuresContainer}>
                   {plan.features.map((feature, index) => (
                     <View key={index} style={styles.featureItem}>
@@ -289,6 +311,37 @@ export const SubscriptionScreen: React.FC<SubscriptionScreenProps> = ({
               >
                 <Text style={styles.changePlanText}>{t('common.back')}</Text>
               </TouchableOpacity>
+            </View>
+
+            {/* Payment Instructions */}
+            <View style={styles.instructionsContainer}>
+              <View style={styles.instructionsHeader}>
+                <Ionicons name="information-circle" size={24} color={colors.primary} />
+                <Text style={styles.instructionsTitle}>{t('subscription.paymentInstructions')}</Text>
+              </View>
+              
+              <View style={styles.instructionsContent}>
+                <Text style={styles.instructionStep}>
+                  {t('subscription.paymentStep1', { price: selectedPlan.price })}
+                </Text>
+                <Text style={styles.instructionStep}>{t('subscription.paymentStep2')}</Text>
+                <Text style={styles.instructionStep}>{t('subscription.paymentStep3')}</Text>
+                <Text style={styles.instructionStep}>{t('subscription.paymentStep4')}</Text>
+              </View>
+
+              <View style={styles.paymentNumberContainer}>
+                <View style={styles.paymentNumberContent}>
+                  <Text style={styles.paymentNumberLabel}>{t('subscription.paymentNumber')}:</Text>
+                  <Text style={styles.paymentNumber}>{PAYMENT_NUMBER}</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.copyButton}
+                  onPress={handleCopyNumber}
+                >
+                  <Ionicons name="copy-outline" size={20} color="#ffffff" />
+                  <Text style={styles.copyButtonText}>{t('subscription.copyNumber')}</Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             <Text style={styles.formTitle}>{t('subscription.uploadProof')}</Text>
@@ -335,6 +388,16 @@ export const SubscriptionScreen: React.FC<SubscriptionScreenProps> = ({
           </View>
         )}
       </ScrollView>
+      
+      {/* Subscription Modal Overlay - показывается поверх всего когда pending */}
+      <SubscriptionModal
+        visible={showModal}
+        subscription={subscription}
+        freeTrialInfo={freeTrialInfo}
+        onBuySubscription={() => setShowModal(false)}
+        onRefreshStatus={onRefreshStatus}
+        canClose={freeTrialInfo?.hasFreeTrial && !freeTrialInfo.isExpired}
+      />
     </SafeAreaView>
   );
 };
@@ -363,6 +426,15 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
       justifyContent: 'center',
       alignItems: 'center',
       marginRight: 12,
+    },
+    refreshButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: colors.surface,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginLeft: 12,
     },
     headerTextContainer: {
       flex: 1,
@@ -558,6 +630,71 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
     submitButtonText: {
       color: '#ffffff',
       fontSize: 16,
+      fontWeight: '600',
+    },
+    // Payment Instructions Styles
+    instructionsContainer: {
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      padding: 16,
+      marginBottom: 24,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    instructionsHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 12,
+      gap: 8,
+    },
+    instructionsTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    instructionsContent: {
+      marginBottom: 16,
+    },
+    instructionStep: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      marginBottom: 8,
+      lineHeight: 20,
+    },
+    paymentNumberContainer: {
+      backgroundColor: colors.background,
+      borderRadius: 8,
+      padding: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    paymentNumberContent: {
+      marginBottom: 12,
+    },
+    paymentNumberLabel: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      marginBottom: 4,
+    },
+    paymentNumber: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      color: colors.text,
+      letterSpacing: 1,
+    },
+    copyButton: {
+      flexDirection: 'row',
+      backgroundColor: colors.primary,
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      borderRadius: 8,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+    },
+    copyButtonText: {
+      color: '#ffffff',
+      fontSize: 14,
       fontWeight: '600',
     },
   });

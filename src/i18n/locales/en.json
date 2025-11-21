@@ -37,9 +37,10 @@
     "save": "Save",
     "delete": "Delete",
     "back": "Back",
+    "continue": "Continue",
     "all": "All",
     "materialTypes": "Material Types",
-    "noData": "No Data"
+    "noData": "No data"
   },
   "theme": {
     "light": "Light",
@@ -83,13 +84,28 @@
     "selectSemester": "Select Semester",
     "comingSoon": "Coming Soon",
     "featureComingSoon": "This feature will be available soon",
-    "aboutApp": "About Rayan App"
+    "aboutApp": "About Rayan App",
+    "subscription": "Subscription",
+    "manageSubscription": "Manage Subscription",
+    "noSubscription": "No Subscription",
+    "noSubscriptionMessage": "You don't have an active subscription. Purchase a subscription for full access.",
+    "stepWithTotal": "Step {{current}} of {{total}}",
+    "cycles": "Cycles"
   },
   "home": {
     "welcome": "Welcome",
     "subjects": "Subjects",
     "materials": "materials",
-    "goToFavorites": "Go to Favorites"
+    "goToFavorites": "Go to Favorites",
+    "noSubjects": "No subjects found"
+  },
+  "materials": {
+    "test": "Test",
+    "audio": "Audio",
+    "video": "Video",
+    "material": "Material",
+    "image": "Image",
+    "file": "File"
   },
   "market": {
     "title": "Rayan Market",
@@ -153,7 +169,41 @@
     "aiAssistant": "AI Assistant support",
     "offlineMode": "Offline mode",
     "prioritySupport": "Priority support",
-    "noAds": "Ad-free experience"
+    "noAds": "Ad-free experience",
+    "pendingTitle": "Subscription Under Review",
+    "pendingRefreshMessage": "Your subscription has been submitted for review. Tap 'Refresh' to check the status.",
+    "accepted": "Subscription Accepted",
+    "acceptedMessage": "Your subscription has been confirmed!",
+    "processing": "Processing",
+    "processingMessage": "Subscription is being processed. Please wait.",
+    "refresh": "Refresh",
+    "price": "Price",
+    "status": "Status",
+    "inReview": "Under Review",
+    "freeTrialTitle": "You have Free Trial",
+    "freeTrialMessage": "Your free trial is active. Time remaining: {{days}}",
+    "daysRemaining": "Days Remaining",
+    "expiredTitle": "Subscription Expired",
+    "expiredMessage": "To continue using the app, you need to purchase a subscription.",
+    "buySubscription": "Buy Subscription",
+    "statusUpdated": "Subscription status updated",
+    "paymentInstructions": "Payment Instructions",
+    "paymentStep1": "1. Transfer {{price}} TJS to the number below",
+    "paymentStep2": "2. Take a screenshot or photo of the payment receipt",
+    "paymentStep3": "3. Upload payment proof and provide details",
+    "paymentStep4": "4. Wait for verification (usually up to 10 minutes)",
+    "paymentNumber": "Transfer Number",
+    "copyNumber": "Copy Number",
+    "numberCopied": "Number copied",
+    "1_month_title": "1 Month",
+    "1_month_desc": "Perfect for trying out",
+    "6_months_title": "6 Months",
+    "6_months_desc": "Most popular choice",
+    "12_months_title": "12 Months",
+    "12_months_desc": "Best value for money",
+    "timeRemaining": "Remaining: {{days}}d {{hours}}h {{minutes}}m",
+    "hours": "h",
+    "minutes": "min"
   },
   "test": {
     "setup": "Test Setup",

@@ -43,16 +43,21 @@ class SubscriptionService extends BaseApiService {
       formData.append('proof_photo', photoBlob);
     }
 
+    // For FormData, we need to explicitly remove Content-Type header
+    // so that fetch can set it automatically with proper boundary
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${accessToken}`,
+    };
+
     return this.makeRequest<{ message: string }>(
       '/user/subscription',
       {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          // Don't set Content-Type, let the browser/fetch set it with boundary
-        },
+        headers,
         body: formData as any,
-      }
+      },
+      false,
+      true // Skip default Content-Type header
     );
   }
 

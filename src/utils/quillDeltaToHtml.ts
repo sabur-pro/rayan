@@ -3,6 +3,109 @@
  * Converts Quill Delta format (ops array) to HTML string
  */
 
+/**
+ * Adapt text colors for theme visibility
+ * Replaces problematic colors (white text in light mode, black text in dark mode)
+ */
+const adaptColorForTheme = (color: string | undefined, isDarkTheme: boolean, isBackground: boolean = false): string | undefined => {
+  if (!color) return undefined;
+  
+  const normalizedColor = color.toLowerCase().replace(/\s/g, '');
+  
+  // List of light colors that are hard to read on light backgrounds
+  const lightColors = [
+    '#fff', '#ffffff', 'white',
+    '#fefefe', '#fdfdfd', '#fcfcfc', '#fbfbfb', '#fafafa',
+    '#f9f9f9', '#f8f8f8', '#f7f7f7', '#f6f6f6', '#f5f5f5',
+    '#f4f4f4', '#f3f3f3', '#f2f2f2', '#f1f1f1', '#f0f0f0',
+    '#efefef', '#eeeeee', '#ededed', '#ececec', '#ebebeb',
+    '#eaeaea', '#e9e9e9', '#e8e8e8', '#e7e7e7', '#e6e6e6',
+    '#e5e5e5', '#e4e4e4', '#e3e3e3', '#e2e2e2', '#e1e1e1',
+    '#e0e0e0', '#dfdfdf', '#dedede', '#dddddd', '#dcdcdc',
+  ];
+  
+  // List of dark colors that are hard to read on dark backgrounds
+  const darkColors = [
+    '#000', '#000000', 'black',
+    '#010101', '#020202', '#030303', '#040404', '#050505',
+    '#060606', '#070707', '#080808', '#090909', '#0a0a0a',
+    '#0b0b0b', '#0c0c0c', '#0d0d0d', '#0e0e0e', '#0f0f0f',
+    '#101010', '#111111', '#121212', '#131313', '#141414',
+    '#151515', '#161616', '#171717', '#181818', '#191919',
+    '#1a1a1a', '#1b1b1b', '#1c1c1c', '#1d1d1d', '#1e1e1e',
+    '#1f1f1f', '#202020', '#212121', '#222222', '#232323',
+  ];
+  
+  // For background colors - different logic
+  if (isBackground) {
+    // In light theme, replace white/very light backgrounds with a visible tint
+    if (!isDarkTheme && lightColors.includes(normalizedColor)) {
+      return '#fff9c4'; // Light yellow tint for highlighting
+    }
+    
+    // In dark theme, replace black/very dark backgrounds with a visible tint
+    if (isDarkTheme && darkColors.includes(normalizedColor)) {
+      return '#4a4a2a'; // Dark yellow-ish tint for highlighting
+    }
+    
+    // Check RGB/RGBA background colors
+    const rgbMatch = normalizedColor.match(/rgba?\((\d+),?(\d+),?(\d+)/);
+    if (rgbMatch) {
+      const [, r, g, b] = rgbMatch.map(Number);
+      const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+      
+      // For very light backgrounds in light theme
+      if (!isDarkTheme && brightness > 240) {
+        return '#fff9c4'; // Light yellow highlight
+      }
+      
+      // For very dark backgrounds in dark theme
+      if (isDarkTheme && brightness < 20) {
+        return '#4a4a2a'; // Dark yellow highlight
+      }
+      
+      // For somewhat light backgrounds in dark theme - darken them
+      if (isDarkTheme && brightness > 180) {
+        // Darken the color for dark theme
+        const factor = 0.3;
+        return `rgb(${Math.floor(r * factor)}, ${Math.floor(g * factor)}, ${Math.floor(b * factor)})`;
+      }
+    }
+    
+    return color;
+  }
+  
+  // For text colors - original logic
+  // In light theme, replace light colors with dark
+  if (!isDarkTheme && lightColors.includes(normalizedColor)) {
+    return '#1a1a1a'; // Dark gray/black for light theme
+  }
+  
+  // In dark theme, replace dark colors with light
+  if (isDarkTheme && darkColors.includes(normalizedColor)) {
+    return '#f5f5f5'; // Light gray/white for dark theme
+  }
+  
+  // Check RGB/RGBA colors
+  const rgbMatch = normalizedColor.match(/rgba?\((\d+),?(\d+),?(\d+)/);
+  if (rgbMatch) {
+    const [, r, g, b] = rgbMatch.map(Number);
+    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+    
+    // If color is too bright for light theme
+    if (!isDarkTheme && brightness > 220) {
+      return '#1a1a1a';
+    }
+    
+    // If color is too dark for dark theme
+    if (isDarkTheme && brightness < 35) {
+      return '#f5f5f5';
+    }
+  }
+  
+  return color;
+};
+
 export interface QuillOp {
   insert: string | { image?: string; video?: string };
   attributes?: {
@@ -31,7 +134,7 @@ interface Line {
 }
 
 // Split delta into lines
-const splitIntoLines = (ops: QuillOp[]): Line[] => {
+const splitIntoLines = (ops: QuillOp[], isDarkTheme: boolean = false): Line[] => {
   const lines: Line[] = [];
   let currentLine = '';
   
@@ -71,7 +174,7 @@ const splitIntoLines = (ops: QuillOp[]): Line[] => {
       
       if (parts[i]) {
         // Apply inline styles to this part
-        currentLine += applyInlineStyles(parts[i], op.attributes || {});
+        currentLine += applyInlineStyles(parts[i], op.attributes || {}, isDarkTheme);
       }
     }
   }
@@ -84,12 +187,12 @@ const splitIntoLines = (ops: QuillOp[]): Line[] => {
   return lines;
 };
 
-export const quillDeltaToHtml = (delta: QuillDelta): string => {
+export const quillDeltaToHtml = (delta: QuillDelta, isDarkTheme: boolean = false): string => {
   if (!delta || !delta.ops || !Array.isArray(delta.ops)) {
     return '';
   }
 
-  const lines = splitIntoLines(delta.ops);
+  const lines = splitIntoLines(delta.ops, isDarkTheme);
   let html = '';
   let currentList: 'ordered' | 'bullet' | null = null;
   let currentCodeBlock: string[] = [];
@@ -173,16 +276,20 @@ export const quillDeltaToHtml = (delta: QuillDelta): string => {
   return html;
 };
 
-const applyInlineStyles = (text: string, attrs: QuillOp['attributes'] = {}): string => {
+const applyInlineStyles = (text: string, attrs: QuillOp['attributes'] = {}, isDarkTheme: boolean = false): string => {
   let result = escapeHtml(text);
   
   let styles: string[] = [];
   
-  if (attrs.color) {
-    styles.push(`color: ${attrs.color}`);
+  // Adapt colors for theme
+  const adaptedColor = adaptColorForTheme(attrs.color, isDarkTheme, false);
+  const adaptedBackground = adaptColorForTheme(attrs.background, isDarkTheme, true);
+  
+  if (adaptedColor) {
+    styles.push(`color: ${adaptedColor}`);
   }
-  if (attrs.background) {
-    styles.push(`background-color: ${attrs.background}`);
+  if (adaptedBackground) {
+    styles.push(`background-color: ${adaptedBackground}`);
   }
   
   const styleAttr = styles.length > 0 ? ` style="${styles.join('; ')}"` : '';

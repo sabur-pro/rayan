@@ -11,7 +11,7 @@ import {
 import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../contexts/ThemeContext';
-import { lightTheme, darkTheme } from '../../theme/colors';
+import { lightTheme, getThemeColors } from '../../theme/colors';
 import { quillDeltaToHtml, QuillDelta } from '../../utils/quillDeltaToHtml';
 
 interface QuillViewerProps {
@@ -26,7 +26,7 @@ interface QuillViewerProps {
  */
 export const QuillViewer: React.FC<QuillViewerProps> = ({ delta, onBack, title }) => {
   const { theme } = useTheme();
-  const colors = theme === 'dark' ? darkTheme : lightTheme;
+  const colors = getThemeColors(theme);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [matchCount, setMatchCount] = useState(0);
@@ -136,7 +136,8 @@ export const QuillViewer: React.FC<QuillViewerProps> = ({ delta, onBack, title }
   }, [matchCount, currentMatchIndex]);
 
   const htmlContent = useMemo(() => {
-    const bodyHtml = quillDeltaToHtml(delta);
+    const isDarkTheme = theme === 'dark';
+    const bodyHtml = quillDeltaToHtml(delta, isDarkTheme);
     const backgroundColor = colors.background;
     const textColor = colors.text;
     const fontSize = 16;
@@ -159,8 +160,9 @@ export const QuillViewer: React.FC<QuillViewerProps> = ({ delta, onBack, title }
               font-size: ${fontSize}px;
               line-height: 1.6;
               color: ${textColor};
-              background-color: ${backgroundColor};
+              background-color: ${colors.background};
               padding: ${padding}px;
+              padding-top: 90px;
               word-wrap: break-word;
               overflow-wrap: break-word;
             }
@@ -604,7 +606,27 @@ export const QuillViewer: React.FC<QuillViewerProps> = ({ delta, onBack, title }
 
   return (
     <View style={styles.container}>
-      {/* Header with search */}
+      {/* WebView - fills entire area */}
+      <WebView
+        ref={webViewRef}
+        originWhitelist={['*']}
+        source={{ html: htmlContent }}
+        style={styles.webView}
+        showsVerticalScrollIndicator={true}
+        showsHorizontalScrollIndicator={false}
+        startInLoadingState={true}
+        renderLoading={() => (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+          </View>
+        )}
+        javaScriptEnabled={true}
+        domStorageEnabled={true}
+        scalesPageToFit={false}
+        onMessage={handleMessage}
+      />
+      
+      {/* Header with search - positioned absolutely on top */}
       <Animated.View style={[
         styles.header, 
         { 
@@ -669,26 +691,6 @@ export const QuillViewer: React.FC<QuillViewerProps> = ({ delta, onBack, title }
         </View>
         
       </Animated.View>
-
-      {/* WebView */}
-      <WebView
-        ref={webViewRef}
-        originWhitelist={['*']}
-        source={{ html: htmlContent }}
-        style={styles.webView}
-        showsVerticalScrollIndicator={true}
-        showsHorizontalScrollIndicator={false}
-        startInLoadingState={true}
-        renderLoading={() => (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={colors.primary} />
-          </View>
-        )}
-        javaScriptEnabled={true}
-        domStorageEnabled={true}
-        scalesPageToFit={false}
-        onMessage={handleMessage}
-      />
       
       {/* Floating Pagination - Bottom Left Corner */}
       {totalPages > 1 && (
@@ -735,11 +737,16 @@ const createStyles = (colors: typeof lightTheme) =>
       backgroundColor: colors.background,
     },
     header: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
       backgroundColor: colors.surface,
       paddingHorizontal: 16,
       paddingVertical: 12,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
+      zIndex: 1000,
       elevation: 2,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },

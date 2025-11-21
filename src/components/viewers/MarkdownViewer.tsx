@@ -16,7 +16,7 @@ import Markdown from 'react-native-markdown-display';
 import RenderHtml, { MixedStyleDeclaration } from 'react-native-render-html';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../contexts/ThemeContext';
-import { lightTheme, darkTheme } from '../../theme/colors';
+import { lightTheme, getThemeColors } from '../../theme/colors';
 import { AudioPlayer } from '../AudioPlayer';
 
 interface MarkdownViewerProps {
@@ -41,7 +41,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
   audioFile,
 }) => {
   const { theme } = useTheme();
-  const colors = theme === 'dark' ? darkTheme : lightTheme;
+  const colors = getThemeColors(theme);
   const styles = createStyles(colors);
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -388,6 +388,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
         style={styles.scrollView}
         contentContainerStyle={[
           styles.contentContainer,
+          { paddingTop: showHeader ? 150 : 20 }, // Dynamic padding based on header visibility
           audioFile ? { paddingBottom: 70 } : undefined // Extra space at bottom for audio player if present
         ]}
         onScroll={handleScroll}
@@ -517,7 +518,6 @@ const createStyles = (colors: typeof lightTheme) =>
     },
     contentContainer: {
       padding: 20,
-      paddingTop: 150,
       paddingBottom: 40,
     },
     bottomSheetOverlay: {

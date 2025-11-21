@@ -8,7 +8,7 @@ import {
 import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../contexts/ThemeContext';
-import { lightTheme, darkTheme } from '../../theme/colors';
+import { lightTheme, getThemeColors } from '../../theme/colors';
 
 interface WebDocumentViewerProps {
   fileUrl: string;
@@ -20,7 +20,7 @@ export const WebDocumentViewer: React.FC<WebDocumentViewerProps> = ({
   fileType,
 }) => {
   const { theme } = useTheme();
-  const colors = theme === 'dark' ? darkTheme : lightTheme;
+  const colors = getThemeColors(theme);
   const styles = createStyles(colors);
 
   const [loading, setLoading] = useState(true);

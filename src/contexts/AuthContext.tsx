@@ -1,8 +1,9 @@
-import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { apiService } from '../services/api';
 import { BaseApiService } from '../services/base';
 import { Subscription } from '../types/subscription';
+import { checkFreeTrialStatus } from '../utils/jwt';
 
 console.log('[AuthContext Module] Loading...');
 
@@ -14,12 +15,19 @@ interface AuthContextType {
   subscription: Subscription | null;
   needsSubscription: boolean;
   isCheckingSubscription: boolean;
+  freeTrialInfo: {
+    hasFreeTrial: boolean;
+    isExpired: boolean;
+    daysRemaining: number;
+    expiryDate: Date | null;
+  } | null;
   login: (tokens: { access_token: string; refresh_token: string; expires_in: number }) => Promise<void>;
   logout: () => void;
   completeWelcome: () => void;
   refreshAccessToken: () => Promise<boolean>;
   checkSubscription: (token: string) => Promise<boolean>;
   handleSubscriptionComplete: (tokens: { access_token: string; refresh_token: string; expires_in: number }) => Promise<void>;
+  recheckSubscription: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -43,7 +51,7 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  console.log('[AuthProvider] Initializing...');
+  const isInitialized = useRef(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [accessToken, setAccessToken] = useState<string | null>(null);
@@ -51,41 +59,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [needsSubscription, setNeedsSubscription] = useState(false);
   const [isCheckingSubscription, setIsCheckingSubscription] = useState(false);
-
-  const checkAuthStatus = async () => {
-    try {
-      const storedAccessToken = await AsyncStorage.getItem('accessToken');
-      const storedRefreshToken = await AsyncStorage.getItem('refreshToken');
-      
-      if (storedAccessToken && storedRefreshToken) {
-        setAccessToken(storedAccessToken);
-        setRefreshToken(storedRefreshToken);
-        
-        // Check subscription status
-        const hasSubscription = await checkSubscription(storedAccessToken);
-        if (hasSubscription) {
-          setIsAuthenticated(true);
-        } else {
-          setNeedsSubscription(true);
-        }
-      }
-    } catch (error) {
-      console.error('Error checking auth status:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    checkAuthStatus();
-  }, []);
+  const [freeTrialInfo, setFreeTrialInfo] = useState<{
+    hasFreeTrial: boolean;
+    isExpired: boolean;
+    daysRemaining: number;
+    expiryDate: Date | null;
+  } | null>(null);
 
   const checkSubscription = useCallback(async (token: string): Promise<boolean> => {
     try {
+      console.log('[AuthProvider] Checking subscription status...');
       setIsCheckingSubscription(true);
       const subscriptionData = await apiService.getCurrentSubscription(false, token);
       
-      if (subscriptionData.status === 'active' && subscriptionData.is_active) {
+      console.log('[AuthProvider] Subscription data:', { status: subscriptionData.status, is_active: subscriptionData.is_active });
+      
+      // Check for accepted status (subscription approved)
+      if ((subscriptionData.status === 'accepted' || subscriptionData.status === 'active') && subscriptionData.is_active) {
         // Get subscription with tokens
         const subscriptionWithTokens = await apiService.getCurrentSubscription(true, token);
         setSubscription(subscriptionWithTokens);
@@ -99,17 +89,51 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
         
         setNeedsSubscription(false);
+        setFreeTrialInfo(null);
         return true;
       }
       
+      // If status is pending, keep needsSubscription true
+      if (subscriptionData.status === 'pending') {
+        console.log('[AuthProvider] Subscription is PENDING - user can enter app but needs to wait');
+        setSubscription(subscriptionData);
+        setNeedsSubscription(true);
+        setFreeTrialInfo(null);
+        return false;
+      }
+      
+      console.log('[AuthProvider] No active subscription found');
       setNeedsSubscription(true);
       return false;
     } catch (error: any) {
       console.log('Subscription check error:', error);
-      if (error.status === 404) {
-        // No subscription found
+      
+      if (error.status === 402) {
+        // 402 Payment Required - subscription needed
+        console.log('402 Payment Required - subscription needed');
         setNeedsSubscription(true);
+        setSubscription(null);
+        setFreeTrialInfo(null);
         return false;
+      }
+      
+      if (error.status === 404) {
+        // No subscription found, check JWT for free trial
+        console.log('No subscription found, checking JWT for free trial...');
+        const trialStatus = checkFreeTrialStatus(token);
+        setFreeTrialInfo(trialStatus);
+        
+        if (trialStatus.hasFreeTrial && !trialStatus.isExpired) {
+          // User has active free trial
+          console.log(`Free trial active: ${trialStatus.daysRemaining} days remaining`);
+          setNeedsSubscription(false);
+          return true;
+        } else {
+          // Free trial expired or doesn't exist
+          console.log('Free trial expired or not found');
+          setNeedsSubscription(true);
+          return false;
+        }
       }
       // Other errors, assume no subscription needed for now
       return false;
@@ -117,6 +141,39 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsCheckingSubscription(false);
     }
   }, []);
+
+  const checkAuthStatus = useCallback(async () => {
+    try {
+      const storedAccessToken = await AsyncStorage.getItem('accessToken');
+      const storedRefreshToken = await AsyncStorage.getItem('refreshToken');
+      
+      if (storedAccessToken && storedRefreshToken) {
+        setAccessToken(storedAccessToken);
+        setRefreshToken(storedRefreshToken);
+        
+        // ВСЕГДА пускаем в приложение если есть токены
+        setIsAuthenticated(true);
+        
+        // Check subscription status - это определит нужно ли показывать экран подписки
+        const hasSubscription = await checkSubscription(storedAccessToken);
+        if (!hasSubscription) {
+          setNeedsSubscription(true);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking auth status:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [checkSubscription]);
+
+  useEffect(() => {
+    if (!isInitialized.current) {
+      isInitialized.current = true;
+      console.log('[AuthProvider] First initialization - checking auth status...');
+      checkAuthStatus();
+    }
+  }, [checkAuthStatus]);
 
   const login = useCallback(async (tokens: { access_token: string; refresh_token: string; expires_in: number }) => {
     try {
@@ -126,12 +183,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setAccessToken(tokens.access_token);
       setRefreshToken(tokens.refresh_token);
       
-      // Check subscription after login
+      // ВСЕГДА пускаем в приложение после логина
+      setIsAuthenticated(true);
+      
+      // Check subscription after login - это определит нужно ли показывать экран подписки
       const hasSubscription = await checkSubscription(tokens.access_token);
-      if (hasSubscription) {
-        setIsAuthenticated(true);
+      if (!hasSubscription) {
+        setNeedsSubscription(true);
       }
-      // If no subscription, needsSubscription will be set to true by checkSubscription
     } catch (error) {
       console.error('Error during login:', error);
     }
@@ -177,11 +236,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setRefreshToken(tokens.refresh_token);
       setNeedsSubscription(false);
       setIsAuthenticated(true);
+      setFreeTrialInfo(null);
       
       // Fetch subscription details
       await checkSubscription(tokens.access_token);
     } catch (error) {
       console.error('Error completing subscription:', error);
+    }
+  }, [checkSubscription]);
+
+  const recheckSubscription = useCallback(async () => {
+    const token = await AsyncStorage.getItem('accessToken');
+    if (token) {
+      await checkSubscription(token);
     }
   }, [checkSubscription]);
 
@@ -204,6 +271,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setSubscription(null);
       setNeedsSubscription(false);
       setIsAuthenticated(false);
+      setFreeTrialInfo(null);
     } catch (error) {
       console.error('Error during logout cleanup:', error);
     }
@@ -229,12 +297,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       subscription,
       needsSubscription,
       isCheckingSubscription,
+      freeTrialInfo,
       login,
       logout,
       completeWelcome,
       refreshAccessToken,
       checkSubscription,
       handleSubscriptionComplete,
+      recheckSubscription,
     }),
     [
       isAuthenticated,
@@ -244,12 +314,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       subscription,
       needsSubscription,
       isCheckingSubscription,
+      freeTrialInfo,
       login,
       logout,
       completeWelcome,
       refreshAccessToken,
       checkSubscription,
       handleSubscriptionComplete,
+      recheckSubscription,
     ]
   );
 

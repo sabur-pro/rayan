@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../contexts/ThemeContext';
-import { lightTheme, darkTheme } from '../../theme/colors';
+import { lightTheme, getThemeColors } from '../../theme/colors';
 
 interface ImageViewerProps {
   imageUrl: string;
@@ -20,7 +20,7 @@ const { width, height } = Dimensions.get('window');
 
 export const ImageViewer: React.FC<ImageViewerProps> = ({ imageUrl }) => {
   const { theme } = useTheme();
-  const colors = theme === 'dark' ? darkTheme : lightTheme;
+  const colors = getThemeColors(theme);
   const styles = createStyles(colors);
 
   const [loading, setLoading] = useState(true);

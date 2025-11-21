@@ -248,13 +248,16 @@ const ProfileNavigator = () => {
 };
 
 const SubscriptionScreenWrapper = () => {
-  const { accessToken, handleSubscriptionComplete } = useAuth();
+  const { accessToken, subscription, freeTrialInfo, handleSubscriptionComplete, recheckSubscription } = useAuth();
   const { resetLanguageSelection } = useLanguage();
   
   return (
     <SubscriptionScreen
       accessToken={accessToken || ''}
+      subscription={subscription}
+      freeTrialInfo={freeTrialInfo}
       onSubscriptionComplete={handleSubscriptionComplete}
+      onRefreshStatus={recheckSubscription}
       onBack={resetLanguageSelection}
     />
   );

@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   BackHandler,
+  RefreshControl,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -18,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { academicService } from '../services/academicService';
 import { MaterialTypeItem } from '../types/academic';
 import { showToast } from '../utils/toast';
+import { MaterialTypeCardSkeleton } from '../components/Skeleton';
 
 interface MaterialTypesScreenProps {
   courseId: number;
@@ -45,10 +48,45 @@ export const MaterialTypesScreen: React.FC<MaterialTypesScreenProps> = ({
 
   const [materialTypes, setMaterialTypes] = useState<MaterialTypeItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const fadeAnim = React.useRef(new Animated.Value(0)).current;
+  const slideAnim = React.useRef(new Animated.Value(50)).current;
+  const headerFadeAnim = React.useRef(new Animated.Value(0)).current;
+  const headerSlideAnim = React.useRef(new Animated.Value(-30)).current;
 
   useEffect(() => {
     loadMaterialTypes();
+    // Animate header on mount
+    Animated.parallel([
+      Animated.timing(headerFadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(headerSlideAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start();
   }, [subjectId, currentLanguage]);
+
+  useEffect(() => {
+    if (!loading && materialTypes.length > 0) {
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [loading, materialTypes]);
 
   useEffect(() => {
     const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -71,11 +109,18 @@ export const MaterialTypesScreen: React.FC<MaterialTypesScreenProps> = ({
     return langMap[lang] || lang;
   };
 
-  const loadMaterialTypes = async () => {
+  const loadMaterialTypes = async (isRefreshing: boolean = false) => {
     if (!accessToken) return;
 
     try {
-      setLoading(true);
+      if (isRefreshing) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+        // Reset content animations (but not header)
+        fadeAnim.setValue(0);
+        slideAnim.setValue(50);
+      }
       const apiLangCode = getLangCodeForAPI(currentLanguage);
       const response = await academicService.getMaterialTypes(
         subjectId,
@@ -90,7 +135,12 @@ export const MaterialTypesScreen: React.FC<MaterialTypesScreenProps> = ({
       showToast.error('Failed to load material types', t('common.error'));
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  const onRefresh = () => {
+    loadMaterialTypes(true);
   };
 
   const handleMaterialTypePress = (materialType: MaterialTypeItem) => {
@@ -129,7 +179,15 @@ export const MaterialTypesScreen: React.FC<MaterialTypesScreenProps> = ({
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <Animated.View
+        style={[
+          styles.header,
+          {
+            opacity: headerFadeAnim,
+            transform: [{ translateY: headerSlideAnim }],
+          },
+        ]}
+      >
         <TouchableOpacity style={styles.backButton} onPress={onBack}>
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
@@ -141,17 +199,27 @@ export const MaterialTypesScreen: React.FC<MaterialTypesScreenProps> = ({
             {t('common.materialTypes') || 'Типы материалов'}
           </Text>
         </View>
-      </View>
+      </Animated.View>
 
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+            progressBackgroundColor={colors.surface}
+          />
+        }
       >
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={styles.loadingText}>{t('common.loading')}</Text>
+        {loading && !refreshing ? (
+          <View style={styles.skeletonsContainer}>
+            {[1, 2, 3, 4].map((key) => (
+              <MaterialTypeCardSkeleton key={key} />
+            ))}
           </View>
         ) : materialTypes.length === 0 ? (
           <View style={styles.emptyState}>
@@ -170,7 +238,15 @@ export const MaterialTypesScreen: React.FC<MaterialTypesScreenProps> = ({
             </Text>
           </View>
         ) : (
-          <View style={styles.cardsContainer}>
+          <Animated.View
+            style={[
+              styles.cardsContainer,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }],
+              },
+            ]}
+          >
             {materialTypes.map((materialType, index) => (
               <TouchableOpacity
                 key={materialType.material_type_id}
@@ -207,7 +283,7 @@ export const MaterialTypesScreen: React.FC<MaterialTypesScreenProps> = ({
                 </View>
               </TouchableOpacity>
             ))}
-          </View>
+          </Animated.View>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -224,7 +300,7 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
       flexDirection: 'row',
       alignItems: 'center',
       paddingHorizontal: 20,
-      paddingVertical: 16,
+      paddingVertical: 12,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
       backgroundColor: colors.surface,
@@ -257,6 +333,9 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
     },
     content: {
       padding: 20,
+    },
+    skeletonsContainer: {
+      gap: 0,
     },
     loadingContainer: {
       flex: 1,

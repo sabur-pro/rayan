@@ -20,13 +20,14 @@ export class BaseApiService {
   protected async makeRequest<T>(
     endpoint: string,
     options: RequestInit = {},
-    isRetry: boolean = false
+    isRetry: boolean = false,
+    skipDefaultContentType: boolean = false
   ): Promise<T> {
     const url = `${API_BASE_URL}${endpoint}`;
     
-    const defaultHeaders = {
-      'Content-Type': 'application/json',
-    };
+    const defaultHeaders: Record<string, string> = skipDefaultContentType
+      ? {}
+      : { 'Content-Type': 'application/json' };
 
     const config: RequestInit = {
       ...options,
@@ -62,7 +63,7 @@ export class BaseApiService {
             
             // Retry the request with new token
             console.log('Token refreshed successfully, retrying request...');
-            return this.makeRequest<T>(endpoint, updatedOptions, true);
+            return this.makeRequest<T>(endpoint, updatedOptions, true, skipDefaultContentType);
           }
         }
         
@@ -77,6 +78,16 @@ export class BaseApiService {
       const data = await response.json();
 
       if (!response.ok) {
+        // Handle 402 Payment Required - subscription needed
+        if (response.status === 402) {
+          console.log('Received 402 - subscription required');
+          throw new ApiError(
+            data.message || 'Subscription required',
+            402,
+            data
+          );
+        }
+        
         throw new ApiError(
           data.message || `HTTP Error ${response.status}`,
           response.status,

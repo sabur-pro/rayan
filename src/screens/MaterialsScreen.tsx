@@ -8,6 +8,8 @@ import {
   ActivityIndicator,
   Image,
   BackHandler,
+  RefreshControl,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -19,6 +21,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { academicService } from '../services/academicService';
 import { MaterialDetail, MaterialDetailTranslation } from '../types/academic';
 import { showToast } from '../utils/toast';
+import { MaterialCardSkeleton } from '../components/Skeleton';
 
 interface MaterialsScreenProps {
   courseId: number;
@@ -50,10 +53,45 @@ export const MaterialsScreen: React.FC<MaterialsScreenProps> = ({
 
   const [materials, setMaterials] = useState<MaterialDetail[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const fadeAnim = React.useRef(new Animated.Value(0)).current;
+  const slideAnim = React.useRef(new Animated.Value(50)).current;
+  const headerFadeAnim = React.useRef(new Animated.Value(0)).current;
+  const headerSlideAnim = React.useRef(new Animated.Value(-30)).current;
 
   useEffect(() => {
     loadMaterials();
+    // Animate header on mount
+    Animated.parallel([
+      Animated.timing(headerFadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(headerSlideAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start();
   }, [subjectId, materialTypeId, currentLanguage]);
+
+  useEffect(() => {
+    if (!loading && materials.length > 0) {
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [loading, materials]);
 
   useEffect(() => {
     const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -76,11 +114,18 @@ export const MaterialsScreen: React.FC<MaterialsScreenProps> = ({
     return langMap[lang] || lang;
   };
 
-  const loadMaterials = async () => {
+  const loadMaterials = async (isRefreshing: boolean = false) => {
     if (!accessToken) return;
 
     try {
-      setLoading(true);
+      if (isRefreshing) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+        // Reset content animations (but not header)
+        fadeAnim.setValue(0);
+        slideAnim.setValue(50);
+      }
       const apiLangCode = getLangCodeForAPI(currentLanguage);
       const response = await academicService.getMaterials(
         courseId,
@@ -98,7 +143,12 @@ export const MaterialsScreen: React.FC<MaterialsScreenProps> = ({
       showToast.error('Failed to load materials', t('common.error'));
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  const onRefresh = () => {
+    loadMaterials(true);
   };
 
   const getTranslation = (material: MaterialDetail): MaterialDetailTranslation | null => {
@@ -112,22 +162,42 @@ export const MaterialsScreen: React.FC<MaterialsScreenProps> = ({
     return extension || 'file';
   };
 
-  const getFileIcon = (path: string): string => {
+  // Определяем категорию файла
+  const getFileCategory = (path: string): { type: string; icon: string; color: string } => {
     const fileType = getFileType(path);
-    if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileType)) {
-      return 'image-outline';
-    } else if (fileType === 'pdf') {
-      return 'document-text-outline';
-    } else if (['ppt', 'pptx'].includes(fileType)) {
-      return 'easel-outline';
-    } else if (['doc', 'docx', 'txt'].includes(fileType)) {
-      return 'document-outline';
-    } else if (['mp4', 'avi', 'mov'].includes(fileType)) {
-      return 'videocam-outline';
-    } else if (['mp3', 'wav'].includes(fileType)) {
-      return 'musical-notes-outline';
+    
+    // Тест
+    if (fileType === 'txt') {
+      return { type: t('materials.test') || 'Тест', icon: 'clipboard-outline', color: '#FF6B6B' };
     }
-    return 'attach-outline';
+    
+    // Аудио
+    if (['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac'].includes(fileType)) {
+      return { type: t('materials.audio') || 'Аудио', icon: 'musical-notes', color: '#9B59B6' };
+    }
+    
+    // Видео
+    if (['mp4', 'avi', 'mov', 'mkv', 'webm', 'flv'].includes(fileType)) {
+      return { type: t('materials.video') || 'Видео', icon: 'videocam', color: '#E74C3C' };
+    }
+    
+    // Изображения
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(fileType)) {
+      return { type: t('materials.image') || 'Изображение', icon: 'image', color: '#3498DB' };
+    }
+    
+    // Материал (документы)
+    if (['json', 'md', 'pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx'].includes(fileType)) {
+      return { type: t('materials.material') || 'Материал', icon: 'document-text', color: '#27AE60' };
+    }
+    
+    // По умолчанию - файл
+    return { type: t('materials.file') || 'Файл', icon: 'document-outline', color: colors.textSecondary };
+  };
+
+  const getFileIcon = (path: string): string => {
+    const category = getFileCategory(path);
+    return category.icon;
   };
 
   const isImageFile = (path: string): boolean => {
@@ -189,20 +259,25 @@ export const MaterialsScreen: React.FC<MaterialsScreenProps> = ({
 
           <View style={styles.cardFooter}>
             <View style={styles.filesPreview}>
-              {paths.slice(0, 3).map((path, index) => (
-                <View key={index} style={styles.fileTag}>
-                  <Ionicons
-                    name={getFileIcon(path) as any}
-                    size={14}
-                    color={colors.primary}
-                  />
-                  <Text style={styles.fileTagText}>
-                    {getFileType(path).toUpperCase()}
-                  </Text>
-                </View>
-              ))}
+              {paths.slice(0, 3).map((path, index) => {
+                const category = getFileCategory(path);
+                return (
+                  <View key={index} style={[styles.fileTag, { backgroundColor: category.color + '15' }]}>
+                    <Ionicons
+                      name={category.icon as any}
+                      size={14}
+                      color={category.color}
+                    />
+                    <Text style={[styles.fileTagText, { color: category.color }]}>
+                      {category.type}
+                    </Text>
+                  </View>
+                );
+              })}
               {paths.length > 3 && (
-                <Text style={styles.moreFiles}>+{paths.length - 3}</Text>
+                <View style={styles.moreFilesContainer}>
+                  <Text style={styles.moreFiles}>+{paths.length - 3}</Text>
+                </View>
               )}
             </View>
             
@@ -218,7 +293,15 @@ export const MaterialsScreen: React.FC<MaterialsScreenProps> = ({
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <Animated.View
+        style={[
+          styles.header,
+          {
+            opacity: headerFadeAnim,
+            transform: [{ translateY: headerSlideAnim }],
+          },
+        ]}
+      >
         <TouchableOpacity style={styles.backButton} onPress={onBack}>
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
@@ -230,17 +313,27 @@ export const MaterialsScreen: React.FC<MaterialsScreenProps> = ({
             {subjectName}
           </Text>
         </View>
-      </View>
+      </Animated.View>
 
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+            progressBackgroundColor={colors.surface}
+          />
+        }
       >
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={styles.loadingText}>{t('common.loading')}</Text>
+        {loading && !refreshing ? (
+          <View style={styles.skeletonsContainer}>
+            {[1, 2, 3].map((key) => (
+              <MaterialCardSkeleton key={key} hasImage={key % 2 === 0} />
+            ))}
           </View>
         ) : materials.length === 0 ? (
           <View style={styles.emptyState}>
@@ -259,9 +352,17 @@ export const MaterialsScreen: React.FC<MaterialsScreenProps> = ({
             </Text>
           </View>
         ) : (
-          <View style={styles.cardsContainer}>
+          <Animated.View
+            style={[
+              styles.cardsContainer,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }],
+              },
+            ]}
+          >
             {materials.map(material => renderMaterialCard(material))}
-          </View>
+          </Animated.View>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -278,7 +379,7 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
       flexDirection: 'row',
       alignItems: 'center',
       paddingHorizontal: 20,
-      paddingVertical: 16,
+      paddingVertical: 12,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
       backgroundColor: colors.surface,
@@ -311,6 +412,9 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
     },
     content: {
       padding: 20,
+    },
+    skeletonsContainer: {
+      gap: 0,
     },
     loadingContainer: {
       flex: 1,
@@ -356,15 +460,16 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
     },
     materialCard: {
       backgroundColor: colors.surface,
-      borderRadius: 20,
+      borderRadius: 24,
       borderWidth: 1,
       borderColor: colors.border,
       overflow: 'hidden',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      elevation: 4,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.12,
+      shadowRadius: 12,
+      elevation: 6,
+      marginBottom: 20,
     },
     cardImageContainer: {
       width: '100%',
@@ -400,35 +505,36 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
       fontWeight: '600',
     },
     cardContent: {
-      padding: 16,
+      padding: 20,
     },
     cardHeader: {
       flexDirection: 'row',
       alignItems: 'flex-start',
-      marginBottom: 12,
+      marginBottom: 16,
     },
     cardIconContainer: {
-      width: 56,
-      height: 56,
-      borderRadius: 28,
+      width: 64,
+      height: 64,
+      borderRadius: 20,
       backgroundColor: colors.primary + '15',
       justifyContent: 'center',
       alignItems: 'center',
-      marginRight: 12,
+      marginRight: 16,
     },
     cardHeaderText: {
       flex: 1,
     },
     cardTitle: {
-      fontSize: 18,
+      fontSize: 19,
       fontWeight: '700',
       color: colors.text,
-      marginBottom: 4,
+      marginBottom: 6,
+      letterSpacing: -0.3,
     },
     cardDescription: {
       fontSize: 14,
       color: colors.textSecondary,
-      lineHeight: 20,
+      lineHeight: 21,
     },
     cardFooter: {
       flexDirection: 'row',
@@ -440,34 +546,40 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
       alignItems: 'center',
       flex: 1,
       flexWrap: 'wrap',
-      gap: 8,
+      gap: 10,
     },
     fileTag: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: colors.primary + '10',
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+      borderRadius: 12,
+      gap: 6,
+    },
+    fileTagText: {
+      fontSize: 12,
+      fontWeight: '700',
+    },
+    moreFilesContainer: {
+      backgroundColor: colors.background,
       paddingHorizontal: 10,
       paddingVertical: 6,
       borderRadius: 10,
-      gap: 4,
-    },
-    fileTagText: {
-      fontSize: 11,
-      fontWeight: '600',
-      color: colors.primary,
+      borderWidth: 1,
+      borderColor: colors.border,
     },
     moreFiles: {
       fontSize: 12,
-      fontWeight: '600',
+      fontWeight: '700',
       color: colors.textSecondary,
     },
     cardArrow: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
+      width: 36,
+      height: 36,
+      borderRadius: 18,
       backgroundColor: colors.primary + '15',
       justifyContent: 'center',
       alignItems: 'center',
-      marginLeft: 8,
+      marginLeft: 12,
     },
   });

@@ -79,7 +79,9 @@
     "selectSemester": "Semestrni tanlang",
     "comingSoon": "Tez orada",
     "featureComingSoon": "Bu funksiya tez orada mavjud bo'ladi",
-    "aboutApp": "Rayan ilovasi haqida"
+    "aboutApp": "Rayan ilovasi haqida",
+    "stepWithTotal": "{{current}}-qadam {{total}}-dan",
+    "cycles": "Tsikllar"
   },
   "home": {
     "welcome": "Xush kelibsiz",

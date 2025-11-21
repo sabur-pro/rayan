@@ -15,11 +15,13 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from '../contexts/ThemeContext';
 import { useLanguage, SupportedLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
+import { calculateTimeRemaining } from '../utils/jwt';
 import { getThemeColors } from '../theme/colors';
 import { Ionicons } from '@expo/vector-icons';
 import { userService } from '../services/userService';
 import { academicService } from '../services/academicService';
 import { ExtendedUserProfile } from '../types/user';
+import { SubscriptionScreen } from './SubscriptionScreen';
 import {
   UniversityItem,
   FacultyItem,
@@ -36,7 +38,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, navigati
   const { t, i18n } = useTranslation();
   const { theme, themeMode, setThemeMode } = useTheme();
   const { currentLanguage, setLanguage } = useLanguage();
-  const { accessToken, login: authLogin } = useAuth();
+  const { accessToken, login: authLogin, subscription, freeTrialInfo, recheckSubscription } = useAuth();
   const colors = getThemeColors(theme);
   const styles = createStyles(colors);
 
@@ -51,6 +53,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, navigati
   const [showFacultyModal, setShowFacultyModal] = useState(false);
   const [showCourseModal, setShowCourseModal] = useState(false);
   const [showSemesterModal, setShowSemesterModal] = useState(false);
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [isCheckingSubscription, setIsCheckingSubscription] = useState(false);
   
   // Academic data
   const [universities, setUniversities] = useState<UniversityItem[]>([]);
@@ -136,9 +140,17 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, navigati
           }),
         ]).start();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading user data:', error);
-      showToast.error('Failed to load profile data', t('common.error'));
+      
+      // Handle 402 - subscription required
+      if (error.status === 402) {
+        console.log('402 error - showing subscription modal');
+        setShowSubscriptionModal(true);
+        animateModalIn();
+      } else {
+        showToast.error('Failed to load profile data', t('common.error'));
+      }
     } finally {
       setLoading(false);
     }
@@ -290,9 +302,9 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, navigati
     // Clear courses list before loading with new limit
     setCourses([]);
     
-    // Apply course limit logic for university ID=1
+    // Apply course limit logic for university ID=2
     let courseLimit = 50; // Default limit
-    if (userData?.university?.id === 1 && userData?.faculty?.id) {
+    if (userData?.university?.id === 2 && userData?.faculty?.id) {
       const facultyId = userData.faculty.id;
       console.log('[ProfileScreen] University ID:', userData.university.id, 'Faculty ID:', facultyId);
       // Faculty 1, 2 → limit 6
@@ -783,6 +795,179 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, navigati
           </View>
         </Animated.View>
 
+        {/* Subscription Section */}
+        <Animated.View 
+          style={[
+            styles.section,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            },
+          ]}
+        >
+          <Text style={styles.sectionTitle}>{t('profile.subscription')}</Text>
+          <View style={styles.settingsList}>
+            {subscription && subscription.is_active ? (
+              // Active subscription
+              <View style={styles.subscriptionCard}>
+                <View style={styles.subscriptionHeader}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
+                    <Text style={styles.subscriptionStatus}>{t('subscription.active')}</Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={async () => {
+                      setIsCheckingSubscription(true);
+                      await recheckSubscription();
+                      setIsCheckingSubscription(false);
+                      showToast.success(t('subscription.statusUpdated'), t('common.success'));
+                    }}
+                    disabled={isCheckingSubscription}
+                    style={styles.refreshIconButton}
+                  >
+                    {isCheckingSubscription ? (
+                      <ActivityIndicator size="small" color={colors.primary} />
+                    ) : (
+                      <Ionicons name="refresh" size={24} color={colors.primary} />
+                    )}
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.subscriptionDetails}>
+                  <View style={styles.subscriptionRow}>
+                    <Text style={styles.subscriptionLabel}>{t('subscription.daysRemaining')}:</Text>
+                    <View style={styles.timeRemainingContainer}>
+                      {(() => {
+                        if (subscription.end_date) {
+                          const { days, hours, minutes } = calculateTimeRemaining(subscription.end_date);
+                          return (
+                            <>
+                              <Text style={styles.subscriptionValue}>{days} {t('subscription.days')}</Text>
+                              <Text style={styles.timeRemainingSmall}>{hours} {t('subscription.hours')} {minutes} {t('subscription.minutes')}</Text>
+                            </>
+                          );
+                        } else {
+                          const days = subscription.days_remaining || 0;
+                          return <Text style={styles.subscriptionValue}>{days} {t('subscription.days')}</Text>;
+                        }
+                      })()}
+                    </View>
+                  </View>
+                  <View style={styles.subscriptionRow}>
+                    <Text style={styles.subscriptionLabel}>{t('subscription.price')}:</Text>
+                    <Text style={styles.subscriptionValue}>{subscription.price} TJS</Text>
+                  </View>
+                </View>
+                {(subscription.days_remaining || 0) < 3 && (
+                  <TouchableOpacity
+                    style={styles.subscriptionButtonFull}
+                    onPress={() => {
+                      setShowSubscriptionModal(true);
+                      animateModalIn();
+                    }}
+                  >
+                    <Ionicons name="card-outline" size={20} color="#ffffff" />
+                    <Text style={styles.subscriptionButtonText}>{t('subscription.buySubscription')}</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            ) : subscription && subscription.status === 'pending' ? (
+              // Pending subscription
+              <View style={styles.subscriptionCard}>
+                <View style={styles.subscriptionHeader}>
+                  <Ionicons name="time-outline" size={24} color={colors.warning || '#FFA500'} />
+                  <Text style={[styles.subscriptionStatus, { color: colors.warning || '#FFA500' }]}>
+                    {t('subscription.pending')}
+                  </Text>
+                </View>
+                <Text style={styles.subscriptionMessage}>
+                  {t('subscription.pendingMessage')}
+                </Text>
+                <TouchableOpacity
+                  style={styles.subscriptionButton}
+                  onPress={async () => {
+                    setIsCheckingSubscription(true);
+                    await recheckSubscription();
+                    setIsCheckingSubscription(false);
+                    showToast.success(t('subscription.statusUpdated'), t('common.success'));
+                  }}
+                  disabled={isCheckingSubscription}
+                >
+                  {isCheckingSubscription ? (
+                    <ActivityIndicator size="small" color="#ffffff" />
+                  ) : (
+                    <>
+                      <Ionicons name="refresh" size={18} color="#ffffff" />
+                      <Text style={styles.subscriptionButtonText}>{t('subscription.refresh')}</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            ) : freeTrialInfo && freeTrialInfo.hasFreeTrial && !freeTrialInfo.isExpired ? (
+              // Free trial active
+              <View style={styles.subscriptionCard}>
+                <View style={styles.subscriptionHeader}>
+                  <Ionicons name="gift-outline" size={24} color={colors.primary} />
+                  <Text style={styles.subscriptionStatus}>{t('subscription.freeTrialTitle')}</Text>
+                </View>
+                <View style={styles.subscriptionDetails}>
+                  <View style={styles.subscriptionRow}>
+                    <Text style={styles.subscriptionLabel}>{t('subscription.daysRemaining')}:</Text>
+                    <View style={styles.timeRemainingContainer}>
+                      {(() => {
+                        if (freeTrialInfo.expiryDate) {
+                          const { days, hours, minutes } = calculateTimeRemaining(freeTrialInfo.expiryDate.toISOString());
+                          return (
+                            <>
+                              <Text style={styles.subscriptionValue}>{days} {t('subscription.days')}</Text>
+                              <Text style={styles.timeRemainingSmall}>{hours} {t('subscription.hours')} {minutes} {t('subscription.minutes')}</Text>
+                            </>
+                          );
+                        } else {
+                          const days = freeTrialInfo.daysRemaining;
+                          return <Text style={styles.subscriptionValue}>{days} {t('subscription.days')}</Text>;
+                        }
+                      })()}
+                    </View>
+                  </View>
+                </View>
+                <TouchableOpacity
+                  style={styles.subscriptionButtonFull}
+                  onPress={() => {
+                    setShowSubscriptionModal(true);
+                    animateModalIn();
+                  }}
+                >
+                  <Ionicons name="card-outline" size={20} color="#ffffff" />
+                  <Text style={styles.subscriptionButtonText}>{t('subscription.buySubscription')}</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              // No subscription
+              <View style={styles.subscriptionCard}>
+                <View style={styles.subscriptionHeader}>
+                  <Ionicons name="alert-circle-outline" size={24} color={colors.error || '#F44336'} />
+                  <Text style={[styles.subscriptionStatus, { color: colors.error || '#F44336' }]}>
+                    {t('profile.noSubscription')}
+                  </Text>
+                </View>
+                <Text style={styles.subscriptionMessage}>
+                  {t('profile.noSubscriptionMessage')}
+                </Text>
+                <TouchableOpacity
+                  style={styles.subscriptionButtonFull}
+                  onPress={() => {
+                    setShowSubscriptionModal(true);
+                    animateModalIn();
+                  }}
+                >
+                  <Ionicons name="card-outline" size={20} color="#ffffff" />
+                  <Text style={styles.subscriptionButtonText}>{t('subscription.buySubscription')}</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </Animated.View>
+
         {/* Account Section */}
         <Animated.View 
           style={[
@@ -1212,6 +1397,44 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, navigati
           </Animated.View>
         </View>
       )}
+
+      {/* Subscription Bottom Sheet */}
+      {showSubscriptionModal && (
+        <View style={styles.bottomSheetOverlay}>
+          <Animated.View 
+            style={[
+              styles.overlayBackground,
+              { opacity: modalFadeAnim }
+            ]}
+          >
+            <TouchableOpacity 
+              style={{ flex: 1 }}
+              activeOpacity={1}
+              onPress={() => animateModalOut(() => setShowSubscriptionModal(false))}
+            />
+          </Animated.View>
+          <Animated.View 
+            style={[
+              styles.fullScreenModal,
+              {
+                transform: [{ translateY: modalSlideAnim }],
+              },
+            ]}
+          >
+            <SubscriptionScreen
+              accessToken={accessToken || ''}
+              subscription={subscription}
+              freeTrialInfo={freeTrialInfo}
+              onSubscriptionComplete={async (tokens) => {
+                await authLogin(tokens);
+                animateModalOut(() => setShowSubscriptionModal(false));
+              }}
+              onRefreshStatus={recheckSubscription}
+              onBack={() => animateModalOut(() => setShowSubscriptionModal(false))}
+            />
+          </Animated.View>
+        </View>
+      )}
     </SafeAreaView>
   );
 };
@@ -1457,5 +1680,97 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
       bottom: 0,
       backgroundColor: 'rgba(255, 255, 255, 0.3)',
       width: 300,
+    },
+    // Subscription Card Styles
+    subscriptionCard: {
+      backgroundColor: colors.surface,
+      borderRadius: 16,
+      padding: 20,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    subscriptionHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 16,
+      gap: 10,
+    },
+    subscriptionStatus: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    subscriptionDetails: {
+      marginBottom: 16,
+    },
+    subscriptionRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    subscriptionLabel: {
+      fontSize: 14,
+      color: colors.textSecondary,
+    },
+    subscriptionValue: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    subscriptionMessage: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      marginBottom: 16,
+      lineHeight: 20,
+    },
+    subscriptionButton: {
+      flexDirection: 'row',
+      backgroundColor: colors.primary,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+    },
+    subscriptionButtonText: {
+      color: '#ffffff',
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    timeRemainingContainer: {
+      alignItems: 'flex-end',
+    },
+    timeRemainingSmall: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      marginTop: 2,
+    },
+    subscriptionButtonsContainer: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    fullScreenModal: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: colors.background,
+    },
+    refreshIconButton: {
+      padding: 4,
+    },
+    subscriptionButtonFull: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.primary,
+      paddingVertical: 14,
+      paddingHorizontal: 24,
+      borderRadius: 12,
+      marginTop: 12,
+      gap: 8,
     },
   });

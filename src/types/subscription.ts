@@ -4,9 +4,9 @@ export interface Subscription {
   start_date: string;
   end_date: string;
   proof_photo: string;
-  status: 'pending' | 'active' | 'expired' | 'rejected';
+  status: 'pending' | 'active' | 'expired' | 'rejected' | 'accepted';
   is_active: boolean;
-  days_remaining: number;
+  days_remaining?: number;
   created_at: string;
   updated_at: string;
   access_token?: string;

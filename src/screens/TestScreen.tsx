@@ -379,8 +379,8 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
       flexDirection: 'row',
       alignItems: 'center',
       paddingHorizontal: 20,
-      paddingVertical: 16,
-      paddingTop: 50,
+      paddingVertical: 10,
+      paddingTop: 12,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
       backgroundColor: colors.surface,
@@ -398,13 +398,13 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
       flex: 1,
     },
     headerTitle: {
-      fontSize: 18,
+      fontSize: 16,
       fontWeight: '700',
       color: colors.text,
       marginBottom: 2,
     },
     headerSubtitle: {
-      fontSize: 13,
+      fontSize: 11,
       color: colors.textSecondary,
       fontWeight: '500',
     },
@@ -421,7 +421,7 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
       backgroundColor: '#EF4444',
     },
     timerText: {
-      fontSize: 14,
+      fontSize: 12,
       fontWeight: '700',
       color: colors.primary,
     },
@@ -448,7 +448,7 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
       borderRadius: 4,
     },
     progressText: {
-      fontSize: 12,
+      fontSize: 10,
       color: colors.textSecondary,
       fontWeight: '600',
       textAlign: 'center',
@@ -479,13 +479,13 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
       alignItems: 'center',
     },
     questionNumberText: {
-      fontSize: 18,
+      fontSize: 16,
       fontWeight: '700',
       color: '#FFF',
     },
     questionText: {
       flex: 1,
-      fontSize: 17,
+      fontSize: 15,
       fontWeight: '600',
       color: colors.text,
       lineHeight: 24,
@@ -527,7 +527,7 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
     },
     answerText: {
       flex: 1,
-      fontSize: 15,
+      fontSize: 13,
       color: colors.text,
       fontWeight: '500',
     },
@@ -540,7 +540,7 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
       marginBottom: 24,
     },
     navigationTitle: {
-      fontSize: 16,
+      fontSize: 14,
       fontWeight: '700',
       color: colors.text,
       marginBottom: 16,
@@ -569,7 +569,7 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
       backgroundColor: colors.primary,
     },
     navButtonText: {
-      fontSize: 14,
+      fontSize: 12,
       fontWeight: '700',
       color: colors.textSecondary,
     },
@@ -602,7 +602,7 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
       opacity: 0.5,
     },
     navButtonText2: {
-      fontSize: 15,
+      fontSize: 13,
       fontWeight: '700',
       color: colors.text,
     },
@@ -625,7 +625,7 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
       elevation: 6,
     },
     nextButtonText: {
-      fontSize: 15,
+      fontSize: 13,
       fontWeight: '700',
       color: '#FFF',
     },
@@ -645,7 +645,7 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
       elevation: 6,
     },
     finishButtonText: {
-      fontSize: 15,
+      fontSize: 13,
       fontWeight: '700',
       color: '#FFF',
     },

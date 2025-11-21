@@ -200,7 +200,6 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
     content: {
       flex: 1,
       paddingHorizontal: 32,
-      justifyContent: 'center',
     },
     header: {
       flexDirection: 'row',

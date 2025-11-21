@@ -7,9 +7,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
-  Platform,
+  Animated,
 } from 'react-native';
-import { BlurView } from 'expo-blur';
 import { showToast } from '../utils/toast';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -33,6 +32,7 @@ import {
 import { MaterialTypesScreen } from './MaterialTypesScreen';
 import { MaterialsScreen } from './MaterialsScreen';
 import { MaterialViewerScreen } from './MaterialViewerScreen';
+import { SubjectCardSkeleton } from '../components/SubjectCardSkeleton';
 
 type SetupStep = 'check' | 'university' | 'faculty' | 'course' | 'semester' | 'complete';
 
@@ -44,7 +44,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const { t } = useTranslation();
   const { theme } = useTheme();
   const { currentLanguage } = useLanguage();
-  const { accessToken, login: authLogin } = useAuth();
+  const { accessToken, login: authLogin, recheckSubscription } = useAuth();
   const colors = getThemeColors(theme);
   const styles = createStyles(colors);
 
@@ -53,6 +53,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [loadingSubjects, setLoadingSubjects] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  
+  // Animations
+  const headerFadeAnim = React.useRef(new Animated.Value(0)).current;
+  const headerSlideAnim = React.useRef(new Animated.Value(-30)).current;
+  const contentFadeAnim = React.useRef(new Animated.Value(0)).current;
+  const contentSlideAnim = React.useRef(new Animated.Value(50)).current;
   
   // Academic setup states
   const [setupStep, setSetupStep] = useState<SetupStep>('check');
@@ -110,6 +116,42 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     }
   }, [userData, currentLanguage, setupStep]);
 
+  // Animate header when complete
+  useEffect(() => {
+    if (setupStep === 'complete') {
+      Animated.parallel([
+        Animated.timing(headerFadeAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(headerSlideAnim, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [setupStep]);
+
+  // Animate content when subjects loaded
+  useEffect(() => {
+    if (!loadingSubjects && subjects.length > 0) {
+      Animated.parallel([
+        Animated.timing(contentFadeAnim, {
+          toValue: 1,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+        Animated.timing(contentSlideAnim, {
+          toValue: 0,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [loadingSubjects, subjects]);
+
   const getLangCodeForAPI = (lang: string): string => {
     const langMap: { [key: string]: string } = {
       en: 'en',
@@ -127,13 +169,21 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
     try {
       setLoading(true);
+      
       const payload = userService.decodeJWT(accessToken);
       if (payload?.user_id) {
         const profile = await userService.getUserById(payload.user_id, accessToken);
         setUserData(profile);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading user data:', error);
+      
+      // Handle 402 - subscription required
+      if (error.status === 402) {
+        console.log('402 error in HomeScreen - subscription required');
+        // Вызываем recheckSubscription чтобы обновить состояние
+        await recheckSubscription();
+      }
     } finally {
       setLoading(false);
     }
@@ -196,13 +246,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     }
   };
 
-  const loadCourses = async () => {
+  const loadCourses = async (limit: number = 50) => {
     if (!accessToken) return;
 
     try {
       setLoadingSetup(true);
       const apiLangCode = getLangCodeForAPI(currentLanguage);
-      const response = await academicService.getCourses(apiLangCode, 1, 50, accessToken);
+      console.log('[HomeScreen] Loading courses with limit:', limit);
+      const response = await academicService.getCourses(apiLangCode, 1, limit, accessToken);
+      console.log('[HomeScreen] Courses loaded, count:', response.data.length);
       setCourses(response.data);
     } catch (error) {
       console.error('Error loading courses:', error);
@@ -247,6 +299,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
     try {
       setLoadingSubjects(true);
+      // Reset content animations
+      contentFadeAnim.setValue(0);
+      contentSlideAnim.setValue(50);
       const apiLangCode = getLangCodeForAPI(currentLanguage);
       const response = await academicService.getSubjects(
         apiLangCode,
@@ -305,13 +360,78 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const handleFacultySelect = async (faculty: FacultyItem) => {
     setSelectedFaculty(faculty);
     setSetupStep('course');
-    await loadCourses();
+    
+    // Clear courses list before loading
+    setCourses([]);
+    
+    // Apply course limit logic for university ID=2
+    let courseLimit = 50; // Default limit
+    if (selectedUniversity?.university_id === 2) {
+      const facultyId = faculty.id;
+      console.log('[HomeScreen] University ID:', selectedUniversity.university_id, 'Faculty ID:', facultyId);
+      // Faculty 1, 2 → limit 6
+      // Faculty 3, 4, 5 → limit 5
+      if (facultyId === 1 || facultyId === 2) {
+        courseLimit = 6;
+        console.log('[HomeScreen] Faculty 1 or 2 detected, setting course limit to 6');
+      } else if (facultyId === 3 || facultyId === 4 || facultyId === 5) {
+        courseLimit = 5;
+        console.log('[HomeScreen] Faculty 3, 4 or 5 detected, setting course limit to 5');
+      }
+    }
+    
+    console.log('[HomeScreen] Loading courses with limit:', courseLimit);
+    await loadCourses(courseLimit);
   };
 
   const handleCourseSelect = async (course: CourseItem) => {
     setSelectedCourse(course);
-    setSetupStep('semester');
-    await loadSemesters();
+    
+    // Auto-select semester for courses > 3 (cycles)
+    if (course.number > 3) {
+      if (!accessToken || !selectedUniversity || !selectedFaculty || !userData) return;
+      
+      try {
+        setLoadingSetup(true);
+        
+        // Load semesters to find semester with ID=1
+        const semestersResponse = await academicService.getSemesters(1, 50, accessToken);
+        const targetSemester = semestersResponse.data.find(s => s.ID === 1);
+        
+        const semesterId = targetSemester ? targetSemester.ID : 1;
+        
+        // Update academic info with auto-selected semester
+        const response = await academicService.updateUserAcademicInfo(
+          {
+            course_id: course.id,
+            faculty_id: selectedFaculty.id,
+            login: userData.login,
+            semester_id: semesterId,
+            university_id: selectedUniversity.university_id,
+          },
+          accessToken
+        );
+
+        await authLogin(response);
+        await loadUserData();
+        setSetupStep('complete');
+        
+        // Show info message about cycles
+        showToast.info(
+          'Цикл: все материалы у них в первом семестре / Cycle: all materials are in the first semester',
+          t('common.info') || 'Information'
+        );
+      } catch (error) {
+        console.error('Error saving academic info:', error);
+        showToast.error('Failed to save academic information', t('common.error'));
+      } finally {
+        setLoadingSetup(false);
+      }
+    } else {
+      // For courses <= 3, show semester selection
+      setSetupStep('semester');
+      await loadSemesters();
+    }
   };
 
   const handleSemesterSelect = async (semester: SemesterItem) => {
@@ -339,6 +459,33 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     } finally {
       setLoadingSetup(false);
     }
+  };
+
+  const handleBackToUniversities = () => {
+    setSetupStep('university');
+    setSelectedUniversity(null);
+    setSelectedFaculty(null);
+    setSelectedCourse(null);
+    setSelectedSemester(null);
+    setFaculties([]);
+    setCourses([]);
+    setSemesters([]);
+  };
+
+  const handleBackToFaculties = () => {
+    setSetupStep('faculty');
+    setSelectedFaculty(null);
+    setSelectedCourse(null);
+    setSelectedSemester(null);
+    setCourses([]);
+    setSemesters([]);
+  };
+
+  const handleBackToCourses = () => {
+    setSetupStep('course');
+    setSelectedCourse(null);
+    setSelectedSemester(null);
+    setSemesters([]);
   };
 
   const handleSubjectPress = (subject: SubjectItem) => {
@@ -388,8 +535,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
   const renderUniversities = () => (
     <>
-      <Text style={styles.setupTitle}>Выберите университет</Text>
-      <Text style={styles.setupSubtitle}>Шаг 1 из 4</Text>
+      <Text style={styles.setupTitle}>{t('profile.selectUniversity')}</Text>
+      <Text style={styles.setupSubtitle}>{t('profile.stepWithTotal', { current: 1, total: 4 })}</Text>
       {loadingSetup ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
@@ -421,8 +568,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
   const renderFaculties = () => (
     <>
-      <Text style={styles.setupTitle}>Выберите факультет</Text>
-      <Text style={styles.setupSubtitle}>Шаг 2 из 4</Text>
+      <View style={styles.headerWithBack}>
+        <TouchableOpacity style={styles.backButton} onPress={handleBackToUniversities}>
+          <Ionicons name="arrow-back" size={24} color={colors.primary} />
+        </TouchableOpacity>
+        <View style={styles.headerTexts}>
+          <Text style={styles.setupTitle}>{t('profile.selectFaculty')}</Text>
+          <Text style={styles.setupSubtitle}>{t('profile.stepWithTotal', { current: 2, total: 4 })}</Text>
+        </View>
+      </View>
       {selectedUniversity && (
         <View style={styles.selectedInfo}>
           <Ionicons name="school" size={16} color={colors.textSecondary} />
@@ -459,8 +613,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
   const renderCourses = () => (
     <>
-      <Text style={styles.setupTitle}>Выберите курс</Text>
-      <Text style={styles.setupSubtitle}>Шаг 3 из 4</Text>
+      <View style={styles.headerWithBack}>
+        <TouchableOpacity style={styles.backButton} onPress={handleBackToFaculties}>
+          <Ionicons name="arrow-back" size={24} color={colors.primary} />
+        </TouchableOpacity>
+        <View style={styles.headerTexts}>
+          <Text style={styles.setupTitle}>{t('profile.selectCourse')}</Text>
+          <Text style={styles.setupSubtitle}>{t('profile.stepWithTotal', { current: 3, total: 4 })}</Text>
+        </View>
+      </View>
       {selectedFaculty && (
         <View style={styles.selectedInfo}>
           <Ionicons name="library" size={16} color={colors.textSecondary} />
@@ -493,8 +654,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
   const renderSemesters = () => (
     <>
-      <Text style={styles.setupTitle}>Выберите семестр</Text>
-      <Text style={styles.setupSubtitle}>Шаг 4 из 4</Text>
+      <View style={styles.headerWithBack}>
+        <TouchableOpacity style={styles.backButton} onPress={handleBackToCourses}>
+          <Ionicons name="arrow-back" size={24} color={colors.primary} />
+        </TouchableOpacity>
+        <View style={styles.headerTexts}>
+          <Text style={styles.setupTitle}>{t('profile.selectSemester')}</Text>
+          <Text style={styles.setupSubtitle}>{t('profile.stepWithTotal', { current: 4, total: 4 })}</Text>
+        </View>
+      </View>
       {selectedCourse && (
         <View style={styles.selectedInfo}>
           <Ionicons name="ribbon" size={16} color={colors.textSecondary} />
@@ -542,21 +710,36 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       )} */}
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>
-          {t('home.subjects')} ({subjects.length})
-        </Text>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>
+            {t('home.subjects')}
+          </Text>
+          <View style={styles.countBadge}>
+            <Text style={styles.countBadgeText}>{subjects.length}</Text>
+          </View>
+        </View>
         
         {loadingSubjects ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={colors.primary} />
+          <View style={styles.subjectsGrid}>
+            {[1, 2, 3, 4].map((key) => (
+              <SubjectCardSkeleton key={key} />
+            ))}
           </View>
         ) : subjects.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="book-outline" size={48} color={colors.textSecondary} />
-            <Text style={styles.emptyStateText}>No subjects found</Text>
+            <Text style={styles.emptyStateText}>{t('home.noSubjects')}</Text>
           </View>
         ) : (
-          <View style={styles.subjectsGrid}>
+          <Animated.View
+            style={[
+              styles.subjectsGrid,
+              {
+                opacity: contentFadeAnim,
+                transform: [{ translateY: contentSlideAnim }],
+              },
+            ]}
+          >
             {subjects.map((subject) => (
               <TouchableOpacity
                 key={subject.id}
@@ -573,8 +756,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                   <View style={styles.subjectGridMeta}>
                     <Ionicons
                       name="document-text"
-                      size={16}
-                      color={colors.textSecondary}
+                      size={13}
+                      color={colors.primary}
                     />
                     <Text style={styles.subjectGridMetaText}>
                       {getMaterialsCountForLanguage(subject)}
@@ -583,7 +766,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                 )}
               </TouchableOpacity>
             ))}
-          </View>
+          </Animated.View>
         )}
       </View>
     </>
@@ -630,56 +813,71 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Fixed Minimalist Header with Blur */}
+      {/* Modern Compact Header */}
       {userData && setupStep === 'complete' && (
-        <BlurView
-          intensity={80}
-          tint={theme === 'dark' ? 'dark' : 'light'}
-          style={styles.fixedHeader}
+        <Animated.View
+          style={[
+            styles.fixedHeader,
+            {
+              opacity: headerFadeAnim,
+              transform: [{ translateY: headerSlideAnim }],
+            },
+          ]}
         >
-          <View style={styles.headerRow}>
+          <View style={styles.headerContainer}>
+            {/* Left: Title and Username */}
             <View style={styles.headerLeft}>
-              <Text style={styles.headerTitle}>{t('navigation.home')}</Text>
-              <Text style={styles.headerSubtitle}>@{userData.login}</Text>
-            </View>
-            <View style={styles.headerRight}>
-              {navigation && (
-                <TouchableOpacity
-                  style={styles.headerIcon}
-                  onPress={() => navigation.navigate('ProfileTab', { screen: 'Favorites' })}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="star-outline" size={22} color={colors.primary} />
-                </TouchableOpacity>
-              )}
-              <View style={styles.headerIcon}>
-                <Ionicons name="school-outline" size={24} color={colors.primary} />
+              <View style={styles.headerTitleRow}>
+                <Text style={styles.headerTitle}>{t('navigation.home')}</Text>
+                <Text style={styles.headerUsername}>@{userData.login}</Text>
               </View>
+              
+              {/* Academic Info below */}
+              {(userData.faculty?.id || userData.course?.id) && (
+                <View style={styles.academicInfo}>
+                  <Text style={styles.academicText} numberOfLines={1}>
+                    {/* Faculty */}
+                    {userData.faculty?.id && userData.faculty.id !== 0 && userData.faculty.translations && (
+                      <Text>{getTranslatedText(userData.faculty.translations, currentLanguage)}</Text>
+                    )}
+                    
+                    {/* Course */}
+                    {userData.course?.id && userData.course.id !== 0 && (
+                      <Text>
+                        {userData.faculty?.id && userData.faculty.id !== 0 ? ' • ' : ''}
+                        {userData.course.number} {t('profile.course').toLowerCase()}
+                      </Text>
+                    )}
+                    
+                    {/* Semester or Cycles */}
+                    {userData.course?.id && userData.course.id !== 0 && (
+                      <Text>
+                        {userData.course.number > 3 ? (
+                          <Text> • {t('profile.cycles')}</Text>
+                        ) : (
+                          userData.semester?.id && userData.semester.id !== 0 && (
+                            <Text> • {userData.semester.number} {t('profile.semester').toLowerCase()}</Text>
+                          )
+                        )}
+                      </Text>
+                    )}
+                  </Text>
+                </View>
+              )}
             </View>
+            
+            {/* Right: Favorite Icon */}
+            {navigation && (
+              <TouchableOpacity
+                style={styles.favoriteButton}
+                onPress={() => navigation.navigate('ProfileTab', { screen: 'Favorites' })}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="star" size={22} color={colors.primary} />
+              </TouchableOpacity>
+            )}
           </View>
-          
-          {/* Academic Info - One Line */}
-          {(userData.faculty?.id || userData.course?.id || userData.semester?.id) && (
-            <View style={styles.academicInfo}>
-              <Text style={styles.academicText} numberOfLines={1}>
-                {userData.faculty?.id && userData.faculty.id !== 0 && userData.faculty.translations && (
-                  <Text>{getTranslatedText(userData.faculty.translations, currentLanguage)}</Text>
-                )}
-                {userData.course?.id && userData.course.id !== 0 && (
-                  <Text>
-                    {userData.faculty?.id && userData.faculty.id !== 0 ? ' • ' : ''}
-                    {userData.course.number} {t('profile.course').toLowerCase()}
-                  </Text>
-                )}
-                {userData.semester?.id && userData.semester.id !== 0 && (
-                  <Text>
-                    {' • '}{userData.semester.number} {t('profile.semester').toLowerCase()}
-                  </Text>
-                )}
-              </Text>
-            </View>
-          )}
-        </BlurView>
+        </Animated.View>
       )}
       
       <ScrollView 
@@ -728,53 +926,58 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
     },
     fixedHeader: {
       paddingHorizontal: 20,
-      paddingTop: 16,
-      paddingBottom: 14,
+      paddingVertical: 14,
       borderBottomWidth: 1,
-      borderBottomColor: colors.border + '40',
-      overflow: 'hidden',
+      borderBottomColor: colors.border,
+      backgroundColor: colors.surface,
     },
-    headerRow: {
+    headerContainer: {
       flexDirection: 'row',
+      alignItems: 'flex-start',
       justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: 12,
     },
     headerLeft: {
       flex: 1,
+      marginRight: 12,
     },
-    headerRight: {
+    headerTitleRow: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
+      marginBottom: 6,
     },
     headerTitle: {
-      fontSize: 24,
+      fontSize: 22,
       fontWeight: '700',
       color: colors.text,
-      marginBottom: 2,
+      letterSpacing: -0.5,
     },
-    headerSubtitle: {
-      fontSize: 14,
+    headerUsername: {
+      fontSize: 15,
       color: colors.textSecondary,
-      fontWeight: '500',
-    },
-    headerIcon: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      backgroundColor: colors.primary + '10',
-      justifyContent: 'center',
-      alignItems: 'center',
+      fontWeight: '600',
     },
     academicInfo: {
-      marginTop: 2,
+      marginTop: 0,
     },
     academicText: {
       fontSize: 13,
       fontWeight: '500',
       color: colors.textSecondary,
       lineHeight: 18,
+    },
+    favoriteButton: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: colors.primary + '12',
+      justifyContent: 'center',
+      alignItems: 'center',
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.15,
+      shadowRadius: 4,
+      elevation: 3,
     },
     loadingContainer: {
       flex: 1,
@@ -1014,11 +1217,30 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
     section: {
       marginBottom: 24,
     },
-    sectionTitle: {
-      fontSize: 20,
-      fontWeight: '600',
-      color: colors.text,
+    sectionHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
       marginBottom: 16,
+      gap: 12,
+    },
+    sectionTitle: {
+      fontSize: 22,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    countBadge: {
+      backgroundColor: colors.primary + '15',
+      paddingHorizontal: 12,
+      paddingVertical: 4,
+      borderRadius: 12,
+      minWidth: 32,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    countBadgeText: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: colors.primary,
     },
     emptyState: {
       alignItems: 'center',
@@ -1074,15 +1296,34 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
     subjectGridMeta: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
-      paddingHorizontal: 12,
+      gap: 4,
+      paddingHorizontal: 10,
       paddingVertical: 6,
-      backgroundColor: colors.primary + '10',
+      backgroundColor: colors.primary + '12',
       borderRadius: 12,
     },
     subjectGridMetaText: {
-      fontSize: 14,
-      fontWeight: '600',
+      fontSize: 12,
+      fontWeight: '700',
       color: colors.primary,
+    },
+    headerWithBack: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 20,
+      gap: 12,
+    },
+    backButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: colors.surface,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    headerTexts: {
+      flex: 1,
     },
   });

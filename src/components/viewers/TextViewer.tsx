@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../contexts/ThemeContext';
-import { lightTheme, darkTheme } from '../../theme/colors';
+import { lightTheme, getThemeColors } from '../../theme/colors';
 
 interface TextViewerProps {
   content: string;
@@ -20,7 +20,7 @@ const { width } = Dimensions.get('window');
 
 export const TextViewer: React.FC<TextViewerProps> = ({ content }) => {
   const { theme } = useTheme();
-  const colors = theme === 'dark' ? darkTheme : lightTheme;
+  const colors = getThemeColors(theme);
   const styles = createStyles(colors);
 
   const [searchQuery, setSearchQuery] = useState('');
