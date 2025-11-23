@@ -41,14 +41,20 @@ export const MaterialViewerScreen: React.FC<MaterialViewerScreenProps> = ({
   const [selectedFileIndex, setSelectedFileIndex] = useState(0);
   const [showFileSelector, setShowFileSelector] = useState(false);
 
+  const cleanFileUrl = (url: string): string => {
+    // Remove query parameters like ?favourite_id=5
+    return url.split('?')[0];
+  };
+
   const getFileType = (path: string): string => {
-    const extension = path.split('.').pop()?.toLowerCase();
+    const cleanPath = cleanFileUrl(path);
+    const extension = cleanPath.split('.').pop()?.toLowerCase();
     return extension || 'file';
   };
 
   // Sort paths so MD files are first
   const paths = React.useMemo(() => {
-    const allPaths = translation.paths || [];
+    const allPaths = (translation.paths || []).map(cleanFileUrl);
     return [...allPaths].sort((a, b) => {
       const typeA = getFileType(a);
       const typeB = getFileType(b);
@@ -323,6 +329,8 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
       paddingVertical: 12,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
+      borderBottomLeftRadius: 16,
+      borderBottomRightRadius: 16,
       backgroundColor: colors.surface,
     },
     backButton: {

@@ -34,6 +34,20 @@ export const CartScreen: React.FC = () => {
     navigation.goBack();
   };
 
+  const handleClearCart = () => {
+    showToast.confirm(
+      'Are you sure you want to clear all items from your cart?',
+      'Clear Cart',
+      () => {
+        // User confirmed - clear cart
+        clearCart();
+      },
+      () => {
+        // User cancelled - do nothing
+      }
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
@@ -49,7 +63,7 @@ export const CartScreen: React.FC = () => {
         {cart.length > 0 && (
           <TouchableOpacity
             style={styles.clearButton}
-            onPress={clearCart}
+            onPress={handleClearCart}
             activeOpacity={0.7}
           >
             <Ionicons name="trash-outline" size={20} color={colors.error} />

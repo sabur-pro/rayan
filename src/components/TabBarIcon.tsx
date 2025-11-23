@@ -10,7 +10,7 @@ interface TabBarIconProps {
 
 const iconMap: { [key: string]: { default: keyof typeof Ionicons.glyphMap; focused: keyof typeof Ionicons.glyphMap } } = {
   home: { default: 'home-outline', focused: 'home' },
-  robot: { default: 'chatbox-outline', focused: 'chatbox' },
+  robot: { default: 'sparkles-outline', focused: 'sparkles' },
   star: { default: 'star-outline', focused: 'star' },
   shop: { default: 'storefront-outline', focused: 'storefront' },
   person: { default: 'person-outline', focused: 'person' },

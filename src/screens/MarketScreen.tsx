@@ -75,35 +75,12 @@ export const MarketScreen: React.FC = () => {
       fadeAnim.setValue(0);
       slideAnim.setValue(30);
 
-      const data = await marketService.getCatalogs();
+      // TODO: Маркет в разработке - отключены API запросы
+      // const data = await marketService.getCatalogs();
       
-      // Normalize data - replace null with empty arrays
-      const normalizedData: MarketResponse = {
-        catalogs: Array.isArray(data?.catalogs) ? data.catalogs : [],
-        unique_tags: Array.isArray(data?.unique_tags) ? data.unique_tags : [],
-      };
-      
-      setMarketData(normalizedData);
-
-      // Group catalogs by tags
-      const grouped: GroupedCatalogs = {};
-      
-      // Only process if we have catalogs
-      if (normalizedData.catalogs.length > 0) {
-        normalizedData.catalogs.forEach((catalog) => {
-          catalog.tags.forEach((tag) => {
-            if (!grouped[tag.name]) {
-              grouped[tag.name] = {
-                tag,
-                catalogs: [],
-              };
-            }
-            grouped[tag.name].catalogs.push(catalog);
-          });
-        });
-      }
-      
-      setGroupedCatalogs(grouped);
+      // Показываем пустое состояние "В разработке"
+      setMarketData({ catalogs: [], unique_tags: [] });
+      setGroupedCatalogs({});
 
       // Animate content in
       Animated.parallel([
@@ -121,8 +98,6 @@ export const MarketScreen: React.FC = () => {
       ]).start();
     } catch (error) {
       console.error('Error loading market data:', error);
-      // Don't show error toast if catalogs are just empty
-      // Set empty data to show "in development" message
       setMarketData({ catalogs: [], unique_tags: [] });
       setGroupedCatalogs({});
       

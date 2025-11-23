@@ -29,6 +29,13 @@
     "profile": "Profil"
   },
   "common": {
+    "loadingMore": "Yuklanmoqda...",
+    "files": "fayllar",
+    "daysAgo": "kun oldin",
+    "hoursAgo": "soat oldin",
+    "justNow": "Hozir",
+    "item": "element",
+    "items": "elementlar",
     "loading": "Yuklanmoqda...",
     "error": "Xato",
     "success": "Muvaffaqiyat",
@@ -86,8 +93,13 @@
   "home": {
     "welcome": "Xush kelibsiz",
     "subjects": "Fanlar",
-    "materials": "materiallar",
-    "goToFavorites": "Sevimlilarga o'tish"
+    "materials": {
+      "addedToFavourites": "Sevimligalarga qo'shildi",
+      "removedFromFavourites": "Sevimliliklardan o'chirildi",
+      "favouriteError": "Sevimlilarni yangilash amalga oshmadi",
+      "materiallar": "materiallar",
+      "goToFavorites": "Sevimlilarga o'tish"
+    }
   },
   "market": {
     "title": "Rayan Market",
@@ -118,6 +130,16 @@
     "filterByTag": "Teg bo'yicha filtr"
   },
   "favorites": {
+  "favourites": {
+    "title": "Sevimlilar",
+    "empty": "Hozircha sevimlilar yo'q",
+    "emptyMessage": "Sevimligalarga qo'shgan materiallar bu yerda ko'rsatiladi",
+    "loadError": "Sevimlilarni yuklash amalga oshmadi",
+    "removeConfirm": "Bu materialni sevimlilardan o'chirmoqchimisiz?",
+    "removeTitle": "Sevimlilardan o'chirish",
+    "removed": "Material sevimlilardan o'chirildi",
+    "removeError": "Sevimlilardan o'chirish amalga oshmadi"
+  },
     "title": "Sevimlilar",
     "viewFavorites": "Sevimlilarni ko'rish"
   },
@@ -204,6 +226,9 @@
     "skipped": "O'tkazilgan",
     "timeSpent": "Sarflangan vaqt",
     "detailedResults": "Batafsil natijalar",
+    "statistics": "Statistika",
+    "score": "Ball",
+    "questions": "savollar",
     "retryTest": "Qayta urinish",
     "close": "Yopish",
     "minutes": "d",

@@ -303,6 +303,8 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
       paddingVertical: 12,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
+      borderBottomLeftRadius: 16,
+      borderBottomRightRadius: 16,
       backgroundColor: colors.surface,
     },
     backButton: {

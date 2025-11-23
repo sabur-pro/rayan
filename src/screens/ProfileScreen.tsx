@@ -469,12 +469,17 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, navigati
   };
 
   const handleLogout = () => {
-    showToast.warning(
+    showToast.confirm(
       t('profile.logoutConfirm'),
-      t('profile.logout')
+      t('profile.logout'),
+      () => {
+        // User confirmed logout
+        onLogout();
+      },
+      () => {
+        // User cancelled - do nothing
+      }
     );
-    // Logout after showing toast
-    setTimeout(() => onLogout(), 1000);
   };
 
   const renderSkeletonLoader = () => {
@@ -1005,7 +1010,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, navigati
             {navigation && renderSettingItem(
               t('favorites.viewFavorites'),
               '',
-              () => navigation.navigate('Favorites'),
+              () => navigation.navigate('Favorites', { from: 'profile' as const }),
               'star-outline'
             )}
             

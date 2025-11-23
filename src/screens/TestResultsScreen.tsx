@@ -1,12 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
+  FlatList,
   TouchableOpacity,
   Animated,
-  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -33,27 +32,16 @@ export const TestResultsScreen: React.FC<TestResultsScreenProps> = ({
   const styles = createStyles(colors);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.9)).current;
-  const progressAnim = useRef(new Animated.Value(0)).current;
   const slideUpAnim = useRef(new Animated.Value(50)).current;
-  const rotateAnim = useRef(new Animated.Value(0)).current;
   const [showDetails, setShowDetails] = useState(false);
 
   const percentage = Math.round((result.correctAnswers / result.totalQuestions) * 100);
-  const { width } = Dimensions.get('window');
-  const circleSize = Math.min(width * 0.45, 180);
 
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
         duration: 600,
-        useNativeDriver: true,
-      }),
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        tension: 40,
-        friction: 8,
         useNativeDriver: true,
       }),
       Animated.timing(slideUpAnim, {
@@ -63,22 +51,7 @@ export const TestResultsScreen: React.FC<TestResultsScreenProps> = ({
       }),
     ]).start();
 
-    Animated.sequence([
-      Animated.timing(progressAnim, {
-        toValue: percentage,
-        duration: 2000,
-        delay: 400,
-        useNativeDriver: false,
-      }),
-      Animated.spring(rotateAnim, {
-        toValue: 1,
-        tension: 50,
-        friction: 7,
-        useNativeDriver: true,
-      }),
-    ]).start();
-
-    setTimeout(() => setShowDetails(true), 2500);
+    setTimeout(() => setShowDetails(true), 800);
   }, []);
 
   const getGradeInfo = () => {
@@ -121,178 +94,218 @@ export const TestResultsScreen: React.FC<TestResultsScreenProps> = ({
     return `${mins}${t('test.minutes')} ${secs}${t('test.seconds')}`;
   };
 
-  const rotation = rotateAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
+  // Render detailed question result
+  const renderQuestionResult = useCallback(({ item: question, index }: { item: any; index: number }) => {
+    const isAnswered = question.userAnswer !== undefined;
+    const isCorrect =
+      isAnswered &&
+      question.userAnswer !== undefined &&
+      question.answers[question.userAnswer].isCorrect;
+    const correctAnswerIndex = question.answers.findIndex((a: any) => a.isCorrect);
 
-  return (
-    <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>{t('test.results')}</Text>
-          {testTitle && <Text style={styles.headerSubtitle}>{testTitle}</Text>}
+    return (
+      <View style={styles.questionResult}>
+        <View style={styles.questionResultHeader}>
+          <View
+            style={[
+              styles.questionResultNumber,
+              isCorrect
+                ? styles.questionResultNumberCorrect
+                : isAnswered
+                ? styles.questionResultNumberIncorrect
+                : styles.questionResultNumberSkipped,
+            ]}
+          >
+            <Text style={styles.questionResultNumberText}>{index + 1}</Text>
+          </View>
+          <View style={styles.questionResultHeaderContent}>
+            <Text style={styles.questionResultText}>{question.question}</Text>
+            <View style={styles.questionResultBadge}>
+              {isCorrect ? (
+                <>
+                  <Ionicons name="checkmark-circle" size={14} color="#10B981" />
+                  <Text style={[styles.questionResultStatus, { color: '#10B981' }]}>
+                    {t('test.correct')}
+                  </Text>
+                </>
+              ) : isAnswered ? (
+                <>
+                  <Ionicons name="close-circle" size={14} color="#EF4444" />
+                  <Text style={[styles.questionResultStatus, { color: '#EF4444' }]}>
+                    {t('test.incorrect')}
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Ionicons name="remove-circle" size={14} color="#F59E0B" />
+                  <Text style={[styles.questionResultStatus, { color: '#F59E0B' }]}>
+                    {t('test.skipped')}
+                  </Text>
+                </>
+              )}
+            </View>
+          </View>
         </View>
-        <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-          <Ionicons name="close" size={24} color={colors.text} />
-        </TouchableOpacity>
-      </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Hero Score Card */}
-        <Animated.View
-          style={[
-            styles.heroCard,
-            {
-              opacity: fadeAnim,
-              transform: [{ scale: scaleAnim }, { translateY: slideUpAnim }],
-            },
-          ]}
-        >
-          {/* Circular Progress */}
-          <View style={styles.progressCircleContainer}>
-            <View style={[styles.progressCircleOuter, { width: circleSize, height: circleSize }]}>
-              {/* Background Circle */}
+        <View style={styles.questionResultAnswers}>
+          {question.answers.map((answer: any, ansIndex: number) => {
+            const isUserAnswer = question.userAnswer === ansIndex;
+            const isCorrectAnswer = ansIndex === correctAnswerIndex;
+
+            return (
               <View
+                key={ansIndex}
                 style={[
-                  styles.progressCircleBg,
-                  {
-                    width: circleSize - 20,
-                    height: circleSize - 20,
-                    borderRadius: (circleSize - 20) / 2,
-                  },
+                  styles.answerResult,
+                  isCorrectAnswer && styles.answerResultCorrect,
+                  isUserAnswer && !isCorrectAnswer && styles.answerResultIncorrect,
                 ]}
-              />
-
-              {/* Animated Progress */}
-              <Animated.View
-                style={[
-                  styles.progressArc,
-                  {
-                    width: circleSize,
-                    height: circleSize,
-                    borderRadius: circleSize / 2,
-                    borderWidth: 10,
-                    borderColor: 'transparent',
-                    borderTopColor: gradeInfo.color,
-                    borderRightColor: percentage > 25 ? gradeInfo.color : 'transparent',
-                    borderBottomColor: percentage > 50 ? gradeInfo.color : 'transparent',
-                    borderLeftColor: percentage > 75 ? gradeInfo.color : 'transparent',
-                    transform: [{ rotate: rotation }],
-                  },
-                ]}
-              />
-
-              {/* Center Content */}
-              <View style={styles.circleCenter}>
-                <Animated.Text style={[styles.centerEmoji, { transform: [{ rotate: rotation }] }]}>
-                  {gradeInfo.emoji}
-                </Animated.Text>
-                <Text style={[styles.centerPercentage, { color: gradeInfo.color }]}>
-                  {percentage}%
-                </Text>
-                <Text style={[styles.centerGrade, { color: gradeInfo.color }]}>
-                  {gradeInfo.grade}
+              >
+                {isCorrectAnswer && <Ionicons name="checkmark" size={14} color="#10B981" />}
+                {isUserAnswer && !isCorrectAnswer && (
+                  <Ionicons name="close" size={14} color="#EF4444" />
+                )}
+                <Text
+                  style={[
+                    styles.answerResultText,
+                    isCorrectAnswer && styles.answerResultTextCorrect,
+                    isUserAnswer && !isCorrectAnswer && styles.answerResultTextIncorrect,
+                  ]}
+                >
+                  {answer.text}
                 </Text>
               </View>
-            </View>
-          </View>
+            );
+          })}
+        </View>
+      </View>
+    );
+  }, [t, styles]);
 
-          <View style={styles.scoreStats}>
-            <View style={styles.scoreStatItem}>
-              <Text style={styles.scoreStatValue}>{result.correctAnswers}</Text>
-              <Text style={styles.scoreStatLabel}>{t('test.correct')}</Text>
-            </View>
-            <View style={styles.scoreStatDivider} />
-            <View style={styles.scoreStatItem}>
-              <Text style={styles.scoreStatValue}>{result.totalQuestions}</Text>
-              <Text style={styles.scoreStatLabel}>{t('test.totalQuestions')}</Text>
-            </View>
-            <View style={styles.scoreStatDivider} />
-            <View style={styles.scoreStatItem}>
-              <Text style={styles.scoreStatValue}>{formatTime(result.timeSpent)}</Text>
-              <Text style={styles.scoreStatLabel}>{t('test.timeSpent')}</Text>
-            </View>
-          </View>
-        </Animated.View>
-
-        {/* Modern Stats Cards */}
+  // Render list header with statistics
+  const renderListHeader = useCallback(() => (
+    <>
+      {/* Statistics Card */}
         <Animated.View
           style={[
-            styles.modernStatsContainer,
+            styles.statsCard,
             {
               opacity: fadeAnim,
               transform: [{ translateY: slideUpAnim }],
             },
           ]}
         >
-          <View style={styles.modernStatsRow}>
-            <View style={[styles.modernStatCard, styles.modernStatCorrect]}>
-              <View style={styles.modernStatIconWrapper}>
-                <View style={styles.modernStatIconBg}>
-                  <Ionicons name="checkmark-circle" size={24} color="#10B981" />
-                </View>
-              </View>
-              <View style={styles.modernStatContent}>
-                <Text style={styles.modernStatValue}>{result.correctAnswers}</Text>
-                <Text style={styles.modernStatLabel}>{t('test.correct')}</Text>
-              </View>
-              <View
-                style={[
-                  styles.modernStatBar,
-                  {
-                    width: `${(result.correctAnswers / result.totalQuestions) * 100}%`,
-                    backgroundColor: '#10B981',
-                  },
-                ]}
-              />
-            </View>
+          <View style={styles.statsHeader}>
+            <Ionicons name="analytics" size={20} color={colors.primary} />
+            <Text style={styles.statsTitle}>{t('test.statistics')}</Text>
+          </View>
 
-            <View style={[styles.modernStatCard, styles.modernStatIncorrect]}>
-              <View style={styles.modernStatIconWrapper}>
-                <View style={styles.modernStatIconBg}>
-                  <Ionicons name="close-circle" size={24} color="#EF4444" />
-                </View>
-              </View>
-              <View style={styles.modernStatContent}>
-                <Text style={styles.modernStatValue}>{result.incorrectAnswers}</Text>
-                <Text style={styles.modernStatLabel}>{t('test.incorrect')}</Text>
-              </View>
-              <View
+          {/* Progress Bar */}
+          <View style={styles.progressBarContainer}>
+            <View style={styles.progressBarTrack}>
+              <View 
                 style={[
-                  styles.modernStatBar,
-                  {
+                  styles.progressBarFill, 
+                  { 
+                    width: `${(result.correctAnswers / result.totalQuestions) * 100}%`,
+                    backgroundColor: '#10B981' 
+                  }
+                ]} 
+              />
+              <View 
+                style={[
+                  styles.progressBarFill, 
+                  { 
                     width: `${(result.incorrectAnswers / result.totalQuestions) * 100}%`,
                     backgroundColor: '#EF4444',
-                  },
-                ]}
+                    left: `${(result.correctAnswers / result.totalQuestions) * 100}%`
+                  }
+                ]} 
               />
+              {result.skippedAnswers > 0 && (
+                <View 
+                  style={[
+                    styles.progressBarFill, 
+                    { 
+                      width: `${(result.skippedAnswers / result.totalQuestions) * 100}%`,
+                      backgroundColor: '#F59E0B',
+                      left: `${((result.correctAnswers + result.incorrectAnswers) / result.totalQuestions) * 100}%`
+                    }
+                  ]} 
+                />
+              )}
             </View>
           </View>
 
-          {result.skippedAnswers > 0 && (
-            <View style={[styles.modernStatCard, styles.modernStatSkipped, { marginTop: 12 }]}>
-              <View style={styles.modernStatIconWrapper}>
-                <View style={styles.modernStatIconBg}>
-                  <Ionicons name="remove-circle" size={24} color="#F59E0B" />
-                </View>
+          {/* Stats Grid */}
+          <View style={styles.statsGrid}>
+            <View style={styles.statItem}>
+              <View style={[styles.statIconContainer, { backgroundColor: '#10B981' + '15' }]}>
+                <Ionicons name="checkmark-circle" size={20} color="#10B981" />
               </View>
-              <View style={styles.modernStatContent}>
-                <Text style={styles.modernStatValue}>{result.skippedAnswers}</Text>
-                <Text style={styles.modernStatLabel}>{t('test.skipped')}</Text>
-              </View>
-              <View
-                style={[
-                  styles.modernStatBar,
-                  {
-                    width: `${(result.skippedAnswers / result.totalQuestions) * 100}%`,
-                    backgroundColor: '#F59E0B',
-                  },
-                ]}
-              />
+              <Text style={styles.statValue}>{result.correctAnswers}</Text>
+              <Text style={styles.statLabel}>{t('test.correct')}</Text>
+              <Text style={styles.statPercentage}>
+                {Math.round((result.correctAnswers / result.totalQuestions) * 100)}%
+              </Text>
             </View>
-          )}
+
+            <View style={styles.statDivider} />
+
+            <View style={styles.statItem}>
+              <View style={[styles.statIconContainer, { backgroundColor: '#EF4444' + '15' }]}>
+                <Ionicons name="close-circle" size={20} color="#EF4444" />
+              </View>
+              <Text style={styles.statValue}>{result.incorrectAnswers}</Text>
+              <Text style={styles.statLabel}>{t('test.incorrect')}</Text>
+              <Text style={styles.statPercentage}>
+                {Math.round((result.incorrectAnswers / result.totalQuestions) * 100)}%
+              </Text>
+            </View>
+
+            {result.skippedAnswers > 0 && (
+              <>
+                <View style={styles.statDivider} />
+                <View style={styles.statItem}>
+                  <View style={[styles.statIconContainer, { backgroundColor: '#F59E0B' + '15' }]}>
+                    <Ionicons name="remove-circle" size={20} color="#F59E0B" />
+                  </View>
+                  <Text style={styles.statValue}>{result.skippedAnswers}</Text>
+                  <Text style={styles.statLabel}>{t('test.skipped')}</Text>
+                  <Text style={styles.statPercentage}>
+                    {Math.round((result.skippedAnswers / result.totalQuestions) * 100)}%
+                  </Text>
+                </View>
+              </>
+            )}
+          </View>
+
+          {/* Performance Info */}
+          <View style={styles.performanceInfo}>
+            <View style={styles.performanceItem}>
+              <Ionicons name="time" size={16} color={colors.textSecondary} />
+              <Text style={styles.performanceText}>{formatTime(result.timeSpent)}</Text>
+            </View>
+            <View style={styles.performanceItem}>
+              <Ionicons name="help-circle" size={16} color={colors.textSecondary} />
+              <Text style={styles.performanceText}>
+                {result.totalQuestions} {t('test.questions')}
+              </Text>
+            </View>
+            <View style={styles.performanceItem}>
+              <Ionicons 
+                name={percentage >= 75 ? "trending-up" : percentage >= 60 ? "remove" : "trending-down"} 
+                size={16} 
+                color={percentage >= 75 ? "#10B981" : percentage >= 60 ? "#F59E0B" : "#EF4444"} 
+              />
+              <Text style={[
+                styles.performanceText,
+                { color: percentage >= 75 ? "#10B981" : percentage >= 60 ? "#F59E0B" : "#EF4444" }
+              ]}>
+                {percentage}% {t('test.score')}
+              </Text>
+            </View>
+          </View>
         </Animated.View>
 
         {/* Detailed Results */}
@@ -307,108 +320,50 @@ export const TestResultsScreen: React.FC<TestResultsScreenProps> = ({
               />
             </TouchableOpacity>
           </View>
-
-          {showDetails &&
-            result.questions.map((question, index) => {
-              const isAnswered = question.userAnswer !== undefined;
-              const isCorrect =
-                isAnswered &&
-                question.userAnswer !== undefined &&
-                question.answers[question.userAnswer].isCorrect;
-              const correctAnswerIndex = question.answers.findIndex((a) => a.isCorrect);
-
-              return (
-                <View key={index} style={styles.questionResult}>
-                  <View style={styles.questionResultHeader}>
-                    <View
-                      style={[
-                        styles.questionResultNumber,
-                        isCorrect
-                          ? styles.questionResultNumberCorrect
-                          : isAnswered
-                          ? styles.questionResultNumberIncorrect
-                          : styles.questionResultNumberSkipped,
-                      ]}
-                    >
-                      <Text style={styles.questionResultNumberText}>{index + 1}</Text>
-                    </View>
-                    <View style={styles.questionResultHeaderContent}>
-                      <Text style={styles.questionResultText}>{question.question}</Text>
-                      <View style={styles.questionResultBadge}>
-                        {isCorrect ? (
-                          <>
-                            <Ionicons name="checkmark-circle" size={14} color="#10B981" />
-                            <Text style={[styles.questionResultStatus, { color: '#10B981' }]}>
-                              {t('test.correct')}
-                            </Text>
-                          </>
-                        ) : isAnswered ? (
-                          <>
-                            <Ionicons name="close-circle" size={14} color="#EF4444" />
-                            <Text style={[styles.questionResultStatus, { color: '#EF4444' }]}>
-                              {t('test.incorrect')}
-                            </Text>
-                          </>
-                        ) : (
-                          <>
-                            <Ionicons name="remove-circle" size={14} color="#F59E0B" />
-                            <Text style={[styles.questionResultStatus, { color: '#F59E0B' }]}>
-                              {t('test.skipped')}
-                            </Text>
-                          </>
-                        )}
-                      </View>
-                    </View>
-                  </View>
-
-                  <View style={styles.questionResultAnswers}>
-                    {question.answers.map((answer, ansIndex) => {
-                      const isUserAnswer = question.userAnswer === ansIndex;
-                      const isCorrectAnswer = ansIndex === correctAnswerIndex;
-
-                      return (
-                        <View
-                          key={ansIndex}
-                          style={[
-                            styles.answerResult,
-                            isCorrectAnswer && styles.answerResultCorrect,
-                            isUserAnswer && !isCorrectAnswer && styles.answerResultIncorrect,
-                          ]}
-                        >
-                          {isCorrectAnswer && <Ionicons name="checkmark" size={14} color="#10B981" />}
-                          {isUserAnswer && !isCorrectAnswer && (
-                            <Ionicons name="close" size={14} color="#EF4444" />
-                          )}
-                          <Text
-                            style={[
-                              styles.answerResultText,
-                              isCorrectAnswer && styles.answerResultTextCorrect,
-                              isUserAnswer && !isCorrectAnswer && styles.answerResultTextIncorrect,
-                            ]}
-                          >
-                            {answer.text}
-                          </Text>
-                        </View>
-                      );
-                    })}
-                  </View>
-                </View>
-              );
-            })}
         </Animated.View>
-      </ScrollView>
+    </>
+  ), [fadeAnim, slideUpAnim, result, showDetails, percentage, t, colors, formatTime, styles]);
 
-      {/* Bottom Actions */}
-      <View style={styles.bottomActions}>
-        <TouchableOpacity style={styles.retryButton} onPress={onRetry}>
-          <Ionicons name="refresh" size={20} color={colors.primary} />
-          <Text style={styles.retryButtonText}>{t('test.retryTest')}</Text>
-        </TouchableOpacity>
+  // Footer with action buttons
+  const renderListFooter = useCallback(() => (
+    <View style={styles.footerActions}>
+      <TouchableOpacity style={styles.retryButton} onPress={onRetry}>
+        <Ionicons name="refresh" size={20} color={colors.primary} />
+        <Text style={styles.retryButtonText}>{t('test.retryTest')}</Text>
+      </TouchableOpacity>
 
-        <TouchableOpacity style={styles.closeButtonBottom} onPress={onClose}>
-          <Text style={styles.closeButtonText}>{t('test.close')}</Text>
+      <TouchableOpacity style={styles.closeButtonBottom} onPress={onClose}>
+        <Text style={styles.closeButtonText}>{t('test.close')}</Text>
+      </TouchableOpacity>
+    </View>
+  ), [onRetry, onClose, t, colors, styles]);
+
+  return (
+    <View style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>{t('test.results')}</Text>
+          {testTitle && <Text style={styles.headerSubtitle}>{testTitle}</Text>}
+        </View>
+        <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+          <Ionicons name="close" size={24} color={colors.text} />
         </TouchableOpacity>
       </View>
+
+      <FlatList
+        data={showDetails ? result.questions : []}
+        renderItem={renderQuestionResult}
+        keyExtractor={(item, index) => index.toString()}
+        ListHeaderComponent={renderListHeader}
+        ListFooterComponent={renderListFooter}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        initialNumToRender={10}
+        windowSize={21}
+      />
     </View>
   );
 };
@@ -428,6 +383,8 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
       paddingTop: 12,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
+      borderBottomLeftRadius: 16,
+      borderBottomRightRadius: 16,
       backgroundColor: colors.surface,
     },
     headerContent: {
@@ -452,150 +409,114 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
       alignItems: 'center',
     },
     content: {
-      flex: 1,
       padding: 20,
     },
-    heroCard: {
-      alignItems: 'center',
+    statsCard: {
       backgroundColor: colors.surface,
       borderRadius: 20,
       padding: 20,
-      marginBottom: 20,
-      borderWidth: 2,
+      marginBottom: 24,
+      borderWidth: 1,
       borderColor: colors.border,
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.1,
-      shadowRadius: 16,
-      elevation: 8,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.08,
+      shadowRadius: 12,
+      elevation: 4,
     },
-    progressCircleContainer: {
+    statsHeader: {
+      flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'center',
+      gap: 8,
+      marginBottom: 16,
+    },
+    statsTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    progressBarContainer: {
       marginBottom: 20,
     },
-    progressCircleOuter: {
-      position: 'relative',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    progressCircleBg: {
-      position: 'absolute',
+    progressBarTrack: {
+      height: 12,
       backgroundColor: colors.background,
-      borderWidth: 2,
+      borderRadius: 6,
+      overflow: 'hidden',
+      position: 'relative',
+      borderWidth: 1,
       borderColor: colors.border,
     },
-    progressArc: {
+    progressBarFill: {
       position: 'absolute',
+      height: '100%',
+      borderRadius: 6,
     },
-    circleCenter: {
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    centerEmoji: {
-      fontSize: 48,
-      marginBottom: 8,
-    },
-    centerPercentage: {
-      fontSize: 44,
-      fontWeight: '900',
-      marginBottom: 6,
-    },
-    centerGrade: {
-      fontSize: 16,
-      fontWeight: '700',
-      textTransform: 'uppercase',
-    },
-    scoreStats: {
+    statsGrid: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-around',
-      width: '100%',
-      paddingTop: 16,
-      borderTopWidth: 2,
-      borderTopColor: colors.border,
+      marginBottom: 16,
+      paddingBottom: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
     },
-    scoreStatItem: {
+    statItem: {
       alignItems: 'center',
+      flex: 1,
     },
-    scoreStatValue: {
-      fontSize: 20,
-      fontWeight: '700',
+    statIconContainer: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    statValue: {
+      fontSize: 24,
+      fontWeight: '900',
       color: colors.text,
       marginBottom: 4,
     },
-    scoreStatLabel: {
-      fontSize: 11,
+    statLabel: {
+      fontSize: 10,
       color: colors.textSecondary,
       fontWeight: '600',
       textTransform: 'uppercase',
+      marginBottom: 4,
     },
-    scoreStatDivider: {
+    statPercentage: {
+      fontSize: 12,
+      color: colors.primary,
+      fontWeight: '700',
+    },
+    statDivider: {
       width: 1,
-      height: 32,
+      height: 60,
       backgroundColor: colors.border,
     },
-    modernStatsContainer: {
-      marginBottom: 24,
-    },
-    modernStatsRow: {
+    performanceInfo: {
       flexDirection: 'row',
+      justifyContent: 'space-around',
+      flexWrap: 'wrap',
       gap: 12,
     },
-    modernStatCard: {
-      flex: 1,
-      backgroundColor: colors.surface,
-      borderRadius: 16,
-      padding: 14,
-      borderWidth: 2,
-      borderColor: colors.border,
-      overflow: 'hidden',
-      position: 'relative',
-    },
-    modernStatCorrect: {
-      backgroundColor: '#10B981' + '08',
-      borderColor: '#10B981' + '30',
-    },
-    modernStatIncorrect: {
-      backgroundColor: '#EF4444' + '08',
-      borderColor: '#EF4444' + '30',
-    },
-    modernStatSkipped: {
-      backgroundColor: '#F59E0B' + '08',
-      borderColor: '#F59E0B' + '30',
-    },
-    modernStatIconWrapper: {
-      marginBottom: 10,
-    },
-    modernStatIconBg: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      backgroundColor: colors.background,
-      justifyContent: 'center',
+    performanceItem: {
+      flexDirection: 'row',
       alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      backgroundColor: colors.background,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
     },
-    modernStatContent: {
-      marginBottom: 8,
-    },
-    modernStatValue: {
-      fontSize: 28,
-      fontWeight: '900',
-      color: colors.text,
-      marginBottom: 2,
-    },
-    modernStatLabel: {
-      fontSize: 11,
+    performanceText: {
+      fontSize: 12,
+      fontWeight: '600',
       color: colors.textSecondary,
-      fontWeight: '700',
-      textTransform: 'uppercase',
-    },
-    modernStatBar: {
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      height: 4,
-      borderRadius: 2,
     },
     section: {
       marginBottom: 24,
@@ -700,7 +621,7 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
       color: '#EF4444',
       fontWeight: '700',
     },
-    bottomActions: {
+    footerActions: {
       flexDirection: 'row',
       paddingHorizontal: 20,
       paddingVertical: 16,

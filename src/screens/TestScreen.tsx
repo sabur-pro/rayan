@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Animated,
   BackHandler,
+  FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -39,13 +40,37 @@ export const TestScreen: React.FC<TestScreenProps> = ({
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [timeRemaining, setTimeRemaining] = useState(timeLimit * 60);
   const [startTime] = useState(Date.now());
+  const [showFeedback, setShowFeedback] = useState(false); // Показывать ли обратную связь
+  const [selectedAnswerIndex, setSelectedAnswerIndex] = useState<number | null>(null); // Выбранный ответ для обратной связи
   const scrollViewRef = useRef<ScrollView>(null);
+  const feedbackTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
+  const feedbackAnim = useRef(new Animated.Value(0)).current;
 
   const currentQuestion = questions[currentQuestionIndex];
   const isLastQuestion = currentQuestionIndex === questions.length - 1;
   const answeredCount = questions.filter((q) => q.userAnswer !== undefined).length;
+
+  // Очистка timeout при смене вопроса
+  useEffect(() => {
+    setShowFeedback(false);
+    setSelectedAnswerIndex(null);
+    feedbackAnim.setValue(0);
+    if (feedbackTimeoutRef.current) {
+      clearTimeout(feedbackTimeoutRef.current);
+      feedbackTimeoutRef.current = null;
+    }
+  }, [currentQuestionIndex]);
+
+  // Очистка timeout при размонтировании
+  useEffect(() => {
+    return () => {
+      if (feedbackTimeoutRef.current) {
+        clearTimeout(feedbackTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Handle back button
   useEffect(() => {
@@ -96,21 +121,57 @@ export const TestScreen: React.FC<TestScreenProps> = ({
   };
 
   const handleBackPress = () => {
-    showToast.warning(
+    showToast.confirm(
       t('test.progressNotSaved'),
-      t('test.exitConfirm')
+      t('test.exitConfirm'),
+      () => {
+        // User confirmed exit
+        onBack();
+      },
+      () => {
+        // User cancelled - continue test
+      }
     );
-    // Exit after showing toast
-    setTimeout(() => onBack(), 1000);
   };
 
   const handleAnswerSelect = (answerIndex: number) => {
+    if (showFeedback) return; // Игнорируем клики во время показа обратной связи
+
     const updatedQuestions = [...questions];
     updatedQuestions[currentQuestionIndex] = {
       ...currentQuestion,
       userAnswer: answerIndex,
     };
     setQuestions(updatedQuestions);
+    
+    // Показываем обратную связь
+    setSelectedAnswerIndex(answerIndex);
+    setShowFeedback(true);
+    
+    // Анимация появления обратной связи
+    Animated.spring(feedbackAnim, {
+      toValue: 1,
+      tension: 100,
+      friction: 8,
+      useNativeDriver: true,
+    }).start();
+    
+    // Очищаем предыдущий timeout если он есть
+    if (feedbackTimeoutRef.current) {
+      clearTimeout(feedbackTimeoutRef.current);
+    }
+    
+    // Автоматический переход к следующему вопросу через 800ms
+    feedbackTimeoutRef.current = setTimeout(() => {
+      setShowFeedback(false);
+      setSelectedAnswerIndex(null);
+      feedbackAnim.setValue(0);
+      feedbackTimeoutRef.current = null;
+      
+      if (currentQuestionIndex < questions.length - 1) {
+        handleNext();
+      }
+    }, 800);
   };
 
   const animateTransition = (direction: 'forward' | 'backward') => {
@@ -155,12 +216,21 @@ export const TestScreen: React.FC<TestScreenProps> = ({
     const unanswered = questions.filter((q) => q.userAnswer === undefined).length;
     
     if (unanswered > 0) {
-      showToast.warning(
+      showToast.confirm(
         t('test.unansweredQuestions', { count: unanswered }),
-        t('test.finishConfirm')
+        t('test.finishConfirm'),
+        () => {
+          // User confirmed - finish test anyway
+          completeTest();
+        },
+        () => {
+          // User cancelled - stay on test to answer remaining questions
+        }
       );
+    } else {
+      // No unanswered questions - complete immediately
+      completeTest();
     }
-    completeTest();
   };
 
   const completeTest = () => {
@@ -274,29 +344,54 @@ export const TestScreen: React.FC<TestScreenProps> = ({
           <View style={styles.answersContainer}>
             {currentQuestion.answers.map((answer, index) => {
               const isSelected = currentQuestion.userAnswer === index;
+              const isShowingFeedback = showFeedback && selectedAnswerIndex === index;
+              const isCorrect = answer.isCorrect;
+              const isWrong = isShowingFeedback && !isCorrect;
+              const isRight = isShowingFeedback && isCorrect;
+              // Если уже есть выбранный ответ, блокируем все остальные
+              const isDisabled = currentQuestion.userAnswer !== undefined;
+              
               return (
-                <TouchableOpacity
-                  key={index}
-                  style={[
-                    styles.answerCard,
-                    isSelected && styles.answerCardSelected,
-                  ]}
-                  onPress={() => handleAnswerSelect(index)}
-                  activeOpacity={0.7}
+                <Animated.View
+                  key={`answer-${currentQuestionIndex}-${index}`}
+                  style={{
+                    transform: [{
+                      scale: isShowingFeedback ? feedbackAnim : 1,
+                    }],
+                    opacity: isDisabled && !isSelected ? 0.5 : 1,
+                  }}
                 >
-                  <View style={[
-                    styles.radio,
-                    isSelected && styles.radioSelected,
-                  ]}>
-                    {isSelected && <View style={styles.radioDot} />}
-                  </View>
-                  <Text style={[
-                    styles.answerText,
-                    isSelected && styles.answerTextSelected,
-                  ]}>
-                    {answer.text}
-                  </Text>
-                </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.answerCard,
+                      isSelected && !showFeedback && styles.answerCardSelected,
+                      isRight && styles.answerCardCorrect,
+                      isWrong && styles.answerCardWrong,
+                    ]}
+                    onPress={() => handleAnswerSelect(index)}
+                    activeOpacity={0.7}
+                    disabled={isDisabled}
+                  >
+                    <View style={[
+                      styles.radio,
+                      isSelected && !showFeedback && styles.radioSelected,
+                      isRight && styles.radioCorrect,
+                      isWrong && styles.radioWrong,
+                    ]}>
+                      {isSelected && !showFeedback && <View style={styles.radioDot} />}
+                      {isRight && <Ionicons name="checkmark" size={16} color="#fff" />}
+                      {isWrong && <Ionicons name="close" size={16} color="#fff" />}
+                    </View>
+                    <Text style={[
+                      styles.answerText,
+                      isSelected && !showFeedback && styles.answerTextSelected,
+                      isRight && styles.answerTextCorrect,
+                      isWrong && styles.answerTextWrong,
+                    ]}>
+                      {answer.text}
+                    </Text>
+                  </TouchableOpacity>
+                </Animated.View>
               );
             })}
           </View>
@@ -305,10 +400,14 @@ export const TestScreen: React.FC<TestScreenProps> = ({
         {/* Question Navigation Grid */}
         <View style={styles.navigationSection}>
           <Text style={styles.navigationTitle}>{t('test.navigation')}</Text>
-          <View style={styles.navigationGrid}>
-            {questions.map((question, index) => (
+          <FlatList
+            data={questions}
+            keyExtractor={(item, index) => index.toString()}
+            numColumns={7}
+            scrollEnabled={false}
+            contentContainerStyle={styles.navigationGrid}
+            renderItem={({ item: question, index }) => (
               <TouchableOpacity
-                key={index}
                 style={[
                   styles.navButton,
                   index === currentQuestionIndex && styles.navButtonActive,
@@ -326,8 +425,12 @@ export const TestScreen: React.FC<TestScreenProps> = ({
                   {index + 1}
                 </Text>
               </TouchableOpacity>
-            ))}
-          </View>
+            )}
+            maxToRenderPerBatch={35}
+            initialNumToRender={35}
+            windowSize={5}
+            removeClippedSubviews={true}
+          />
         </View>
       </ScrollView>
 
@@ -383,6 +486,8 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
       paddingTop: 12,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
+      borderBottomLeftRadius: 16,
+      borderBottomRightRadius: 16,
       backgroundColor: colors.surface,
     },
     backButton: {
@@ -535,6 +640,31 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
       color: colors.primary,
       fontWeight: '700',
     },
+    // Стили для обратной связи
+    answerCardCorrect: {
+      borderColor: '#10B981',
+      backgroundColor: '#10B981' + '15',
+    },
+    answerCardWrong: {
+      borderColor: '#EF4444',
+      backgroundColor: '#EF4444' + '15',
+    },
+    radioCorrect: {
+      borderColor: '#10B981',
+      backgroundColor: '#10B981',
+    },
+    radioWrong: {
+      borderColor: '#EF4444',
+      backgroundColor: '#EF4444',
+    },
+    answerTextCorrect: {
+      color: '#10B981',
+      fontWeight: '700',
+    },
+    answerTextWrong: {
+      color: '#EF4444',
+      fontWeight: '700',
+    },
     navigationSection: {
       marginTop: 8,
       marginBottom: 24,
@@ -546,13 +676,12 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
       marginBottom: 16,
     },
     navigationGrid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
       gap: 10,
     },
     navButton: {
-      width: 48,
-      height: 48,
+      width: 44,
+      height: 44,
+      margin: 3,
       borderRadius: 12,
       backgroundColor: colors.surface,
       borderWidth: 2,

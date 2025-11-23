@@ -9,6 +9,9 @@ import {
   UpdateUserResponse,
   MaterialTypeResponse,
   MaterialResponse,
+  FavouriteItem,
+  AddFavouriteRequest,
+  AddFavouriteResponse,
 } from '../types/academic';
 
 class AcademicService extends BaseApiService {
@@ -145,6 +148,52 @@ class AcademicService extends BaseApiService {
       `/material?page=${page}&limit=${limit}&course_id=${courseId}&semester_id=${semesterId}&subject_id=${subjectId}&material_type_id=${materialTypeId}&lang_code=${langCode}`,
       {
         method: 'GET',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+  }
+
+  async getFavourites(
+    langCode: string,
+    accessToken: string
+  ): Promise<FavouriteItem[]> {
+    return this.makeRequest<FavouriteItem[]>(
+      `/favourite/me?lang_code=${langCode}`,
+      {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+  }
+
+  async addFavourite(
+    materialId: number,
+    accessToken: string
+  ): Promise<AddFavouriteResponse> {
+    return this.makeRequest<AddFavouriteResponse>(
+      '/favourite',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ material_id: materialId }),
+      }
+    );
+  }
+
+  async removeFavourite(
+    favouriteId: number,
+    accessToken: string
+  ): Promise<void> {
+    return this.makeRequest<void>(
+      `/favourite/${favouriteId}`,
+      {
+        method: 'DELETE',
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },

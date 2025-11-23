@@ -54,6 +54,10 @@ export const MaterialsScreen: React.FC<MaterialsScreenProps> = ({
   const [materials, setMaterials] = useState<MaterialDetail[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
   const slideAnim = React.useRef(new Animated.Value(50)).current;
   const headerFadeAnim = React.useRef(new Animated.Value(0)).current;
@@ -102,6 +106,11 @@ export const MaterialsScreen: React.FC<MaterialsScreenProps> = ({
     return () => backHandler.remove();
   }, [onBack]);
 
+  const cleanFileUrl = (url: string): string => {
+    // Remove query parameters like ?favourite_id=5
+    return url.split('?')[0];
+  };
+
   const getLangCodeForAPI = (lang: string): string => {
     const langMap: { [key: string]: string } = {
       en: 'en',
@@ -138,6 +147,9 @@ export const MaterialsScreen: React.FC<MaterialsScreenProps> = ({
         accessToken
       );
       setMaterials(response.data);
+      setTotalCount(response.total_count);
+      setCurrentPage(1);
+      setHasMore(response.data.length < response.total_count);
     } catch (error) {
       console.error('Error loading materials:', error);
       showToast.error('Failed to load materials', t('common.error'));
@@ -151,6 +163,63 @@ export const MaterialsScreen: React.FC<MaterialsScreenProps> = ({
     loadMaterials(true);
   };
 
+  const loadMoreMaterials = async () => {
+    if (!hasMore || loadingMore || !accessToken) return;
+
+    try {
+      setLoadingMore(true);
+      const nextPage = currentPage + 1;
+      const apiLangCode = getLangCodeForAPI(currentLanguage);
+      const response = await academicService.getMaterials(
+        courseId,
+        semesterId,
+        subjectId,
+        materialTypeId,
+        apiLangCode,
+        nextPage,
+        10,
+        accessToken
+      );
+      setMaterials(prev => [...prev, ...response.data]);
+      setCurrentPage(nextPage);
+      setHasMore(materials.length + response.data.length < response.total_count);
+    } catch (error) {
+      console.error('Error loading more materials:', error);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  const toggleFavourite = async (material: MaterialDetail) => {
+    if (!accessToken) return;
+
+    try {
+      if (material.is_favourite && material.favourite_id) {
+        // Remove from favourites
+        await academicService.removeFavourite(material.favourite_id, accessToken);
+        showToast.success(
+          t('materials.removedFromFavourites') || 'Removed from favourites',
+          t('common.success') || 'Success'
+        );
+      } else {
+        // Add to favourites
+        const response = await academicService.addFavourite(material.id, accessToken);
+        showToast.success(
+          t('materials.addedToFavourites') || 'Added to favourites',
+          t('common.success') || 'Success'
+        );
+      }
+      // Reload materials to get updated favourite status
+      loadMaterials(false);
+    } catch (error) {
+      console.error('Error toggling favourite:', error);
+      showToast.error(
+        t('materials.favouriteError') || 'Failed to update favourite',
+        t('common.error') || 'Error'
+      );
+    }
+  };
+
   const getTranslation = (material: MaterialDetail): MaterialDetailTranslation | null => {
     const apiLangCode = getLangCodeForAPI(currentLanguage);
     const translation = material.translations.find(t => t.lang_code === apiLangCode);
@@ -158,7 +227,8 @@ export const MaterialsScreen: React.FC<MaterialsScreenProps> = ({
   };
 
   const getFileType = (path: string): string => {
-    const extension = path.split('.').pop()?.toLowerCase();
+    const cleanPath = cleanFileUrl(path);
+    const extension = cleanPath.split('.').pop()?.toLowerCase();
     return extension || 'file';
   };
 
@@ -209,9 +279,9 @@ export const MaterialsScreen: React.FC<MaterialsScreenProps> = ({
     const translation = getTranslation(material);
     if (!translation) return null;
 
-    const paths = translation.paths || [];
+    const paths = (translation.paths || []).map(cleanFileUrl);
     const hasImages = paths.some(path => isImageFile(path));
-    const firstImage = paths.find(path => isImageFile(path));
+    const firstImage = hasImages ? paths.find(path => isImageFile(path)) : undefined;
 
     return (
       <TouchableOpacity
@@ -255,6 +325,20 @@ export const MaterialsScreen: React.FC<MaterialsScreenProps> = ({
                 {translation.description}
               </Text>
             </View>
+            <TouchableOpacity
+              style={styles.favouriteButton}
+              onPress={(e) => {
+                e.stopPropagation();
+                toggleFavourite(material);
+              }}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name={material.is_favourite ? 'star' : 'star-outline'}
+                size={24}
+                color={material.is_favourite ? '#FFD700' : colors.textSecondary}
+              />
+            </TouchableOpacity>
           </View>
 
           <View style={styles.cardFooter}>
@@ -319,6 +403,17 @@ export const MaterialsScreen: React.FC<MaterialsScreenProps> = ({
         style={styles.scrollView}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        onScroll={(event) => {
+          const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+          const paddingToBottom = 20;
+          const isCloseToBottom =
+            layoutMeasurement.height + contentOffset.y >=
+            contentSize.height - paddingToBottom;
+          if (isCloseToBottom && !loadingMore) {
+            loadMoreMaterials();
+          }
+        }}
+        scrollEventThrottle={400}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -362,6 +457,14 @@ export const MaterialsScreen: React.FC<MaterialsScreenProps> = ({
             ]}
           >
             {materials.map(material => renderMaterialCard(material))}
+            {loadingMore && (
+              <View style={styles.loadingMoreContainer}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={styles.loadingMoreText}>
+                  {t('common.loadingMore') || 'Loading more...'}
+                </Text>
+              </View>
+            )}
           </Animated.View>
         )}
       </ScrollView>
@@ -382,6 +485,8 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
       paddingVertical: 12,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
+      borderBottomLeftRadius: 16,
+      borderBottomRightRadius: 16,
       backgroundColor: colors.surface,
     },
     backButton: {
@@ -581,5 +686,30 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
       justifyContent: 'center',
       alignItems: 'center',
       marginLeft: 12,
+    },
+    favouriteButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: colors.background,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginLeft: 8,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    loadingMoreContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 20,
+      gap: 10,
+    },
+    loadingMoreText: {
+      fontSize: 14,
+      color: colors.textSecondary,
     },
   });

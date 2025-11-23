@@ -110,6 +110,32 @@ export const MaterialCardSkeleton: React.FC<{ hasImage?: boolean }> = ({ hasImag
   );
 };
 
+// Favorite Card Skeleton
+export const FavoriteCardSkeleton: React.FC = () => {
+  const { theme } = useTheme();
+  const colors = getThemeColors(theme);
+  const styles = createStyles(colors);
+
+  return (
+    <View style={styles.favoriteCard}>
+      <View style={styles.favoriteCardHeader}>
+        <Skeleton width={40} height={40} borderRadius={20} style={{ marginRight: 12 }} />
+        <View style={styles.favoriteCardInfo}>
+          <Skeleton width="70%" height={18} borderRadius={9} style={{ marginBottom: 6 }} />
+          <Skeleton width="50%" height={14} borderRadius={7} />
+        </View>
+        <Skeleton width={24} height={24} borderRadius={12} />
+      </View>
+      <Skeleton width="100%" height={16} borderRadius={8} style={{ marginBottom: 4 }} />
+      <Skeleton width="85%" height={16} borderRadius={8} style={{ marginBottom: 8 }} />
+      <View style={styles.favoriteCardFooter}>
+        <Skeleton width={80} height={14} borderRadius={7} />
+        <Skeleton width={100} height={14} borderRadius={7} />
+      </View>
+    </View>
+  );
+};
+
 const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
   StyleSheet.create({
     card: {
@@ -155,5 +181,26 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
       flexDirection: 'row',
       alignItems: 'center',
       flex: 1,
+    },
+    favoriteCard: {
+      backgroundColor: colors.surface,
+      borderRadius: 16,
+      padding: 16,
+      marginBottom: 16,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    favoriteCardHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 12,
+    },
+    favoriteCardInfo: {
+      flex: 1,
+    },
+    favoriteCardFooter: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
     },
   });

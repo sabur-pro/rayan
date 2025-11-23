@@ -233,6 +233,8 @@ export interface MaterialDetail {
   updated_at: string;
   translations: MaterialDetailTranslation[];
   subjects: MaterialDetailSubject[];
+  is_favourite: boolean;
+  favourite_id?: number;
 }
 
 export interface MaterialResponse {
@@ -240,4 +242,55 @@ export interface MaterialResponse {
   page: number;
   limit: number;
   total_count: number;
+}
+
+// Favourite types
+export interface FavouriteTranslation {
+  lang_code: string;
+  name: string;
+  description: string;
+  paths?: string[];
+  status: string;
+}
+
+export interface FavouriteMaterialType {
+  id: number;
+  translation: {
+    lang_code: string;
+    name: string;
+    description: string;
+    status: string;
+  };
+}
+
+export interface FavouriteMaterial {
+  id: number;
+  course_id: number;
+  semester_id: number;
+  material_type_id: number;
+  created_at: string;
+  updated_at: string;
+  translation: FavouriteTranslation;
+  material_type: FavouriteMaterialType;
+}
+
+export interface FavouriteItem {
+  id: number;
+  user_id: number;
+  material_id: number;
+  created_at: string;
+  updated_at: string;
+  material: FavouriteMaterial;
+}
+
+export interface AddFavouriteRequest {
+  material_id: number;
+}
+
+export interface AddFavouriteResponse {
+  id: number;
+  user_id: number;
+  material_id: number;
+  created_at: string;
+  updated_at: string;
 }

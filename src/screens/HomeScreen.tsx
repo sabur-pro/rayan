@@ -92,6 +92,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               backgroundColor: colors.surface,
               borderTopColor: colors.border,
               borderTopWidth: 1,
+              borderTopLeftRadius: 16,
+              borderTopRightRadius: 16,
               paddingBottom: 8,
               paddingTop: 8,
               height: 70,
@@ -870,7 +872,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             {navigation && (
               <TouchableOpacity
                 style={styles.favoriteButton}
-                onPress={() => navigation.navigate('ProfileTab', { screen: 'Favorites' })}
+                onPress={() => {
+                  navigation.navigate('ProfileTab', { 
+                    screen: 'Favorites',
+                    params: { from: 'home' as const }
+                  });
+                }}
                 activeOpacity={0.7}
               >
                 <Ionicons name="star" size={22} color={colors.primary} />
@@ -929,6 +936,8 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
       paddingVertical: 14,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
+      borderBottomLeftRadius: 16,
+      borderBottomRightRadius: 16,
       backgroundColor: colors.surface,
     },
     headerContainer: {

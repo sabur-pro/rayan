@@ -43,11 +43,13 @@ export const TestSetupScreen: React.FC<TestSetupScreenProps> = ({
   const [mode, setMode] = useState<'all' | 'range'>('all');
   const [rangeStart, setRangeStart] = useState('1');
   const [rangeEnd, setRangeEnd] = useState(testData.questions.length.toString());
-  const [questionCount, setQuestionCount] = useState<10 | 15 | 20 | 'custom' | 'all'>('all');
+  const [questionCount, setQuestionCount] = useState<10 | 15 | 20 | 'custom' | 'all'>(10);
   const [customQuestionCount, setCustomQuestionCount] = useState('');
   const [timeLimit, setTimeLimit] = useState<10 | 15 | 20 | 30 | 45 | 60 | 'custom'>(30);
   const [customTimeLimit, setCustomTimeLimit] = useState('');
   const [shuffleAnswers, setShuffleAnswers] = useState(false);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
   
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -63,6 +65,8 @@ export const TestSetupScreen: React.FC<TestSetupScreenProps> = ({
   }, []);
 
   const handleStart = () => {
+    if (isStarting) return;
+    
     const start = parseInt(rangeStart);
     const end = parseInt(rangeEnd);
 
@@ -70,12 +74,15 @@ export const TestSetupScreen: React.FC<TestSetupScreenProps> = ({
       showToast.error(t('test.invalidRange'), t('common.error'));
       return;
     }
+    
+    setIsStarting(true);
 
     let finalQuestionCount: number | 'all';
     if (questionCount === 'custom') {
       const customCount = parseInt(customQuestionCount);
       if (isNaN(customCount) || customCount < 1) {
         showToast.error(t('test.enterCustomCount'), t('common.error'));
+        setIsStarting(false);
         return;
       }
       finalQuestionCount = customCount;
@@ -88,6 +95,7 @@ export const TestSetupScreen: React.FC<TestSetupScreenProps> = ({
       const customTime = parseInt(customTimeLimit);
       if (isNaN(customTime) || customTime < 1) {
         showToast.error(t('test.enterCustomTime'), t('common.error'));
+        setIsStarting(false);
         return;
       }
       finalTimeLimit = customTime;
@@ -109,14 +117,18 @@ export const TestSetupScreen: React.FC<TestSetupScreenProps> = ({
       }),
     ]).start();
 
-    onStart({
-      mode,
-      rangeStart: mode === 'range' ? start : undefined,
-      rangeEnd: mode === 'range' ? end : undefined,
-      questionCount: finalQuestionCount,
-      timeLimit: finalTimeLimit,
-      shuffleAnswers,
-    });
+    // Small delay to show loading state
+    setTimeout(() => {
+      onStart({
+        mode,
+        rangeStart: mode === 'range' ? start : undefined,
+        rangeEnd: mode === 'range' ? end : undefined,
+        questionCount: finalQuestionCount,
+        timeLimit: finalTimeLimit,
+        shuffleAnswers,
+      });
+      setIsStarting(false);
+    }, 150);
   };
 
   return (
@@ -147,15 +159,38 @@ export const TestSetupScreen: React.FC<TestSetupScreenProps> = ({
 
         {/* Preview Button */}
         {onPreview && (
-          <TouchableOpacity style={styles.previewButton} onPress={onPreview}>
+          <TouchableOpacity 
+            style={[styles.previewButton, isLoadingPreview && styles.previewButtonLoading]} 
+            onPress={() => {
+              if (!isLoadingPreview) {
+                setIsLoadingPreview(true);
+                // Small delay to show loading state
+                setTimeout(() => {
+                  onPreview();
+                  setIsLoadingPreview(false);
+                }, 100);
+              }
+            }}
+            disabled={isLoadingPreview}
+          >
             <View style={styles.previewButtonContent}>
-              <Ionicons name="eye" size={24} color={colors.primary} />
+              {isLoadingPreview ? (
+                <Animated.View style={{ transform: [{ rotate: '0deg' }] }}>
+                  <Ionicons name="hourglass" size={24} color={colors.primary} />
+                </Animated.View>
+              ) : (
+                <Ionicons name="eye" size={24} color={colors.primary} />
+              )}
               <View style={styles.previewButtonText}>
-                <Text style={styles.previewButtonTitle}>{t('test.previewTest')}</Text>
+                <Text style={styles.previewButtonTitle}>
+                  {isLoadingPreview ? t('test.loadingPreview') : t('test.previewTest')}
+                </Text>
                 <Text style={styles.previewButtonSubtitle}>{t('test.viewAllAnswers')}</Text>
               </View>
             </View>
-            <Ionicons name="chevron-forward" size={24} color={colors.textSecondary} />
+            {!isLoadingPreview && (
+              <Ionicons name="chevron-forward" size={24} color={colors.textSecondary} />
+            )}
           </TouchableOpacity>
         )}
 
@@ -231,7 +266,7 @@ export const TestSetupScreen: React.FC<TestSetupScreenProps> = ({
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('test.questionCount')}</Text>
           <View style={styles.countGrid}>
-            {(['all', 10, 15, 20] as const).map((count) => (
+            {([10, 15, 20, 'all'] as const).map((count) => (
               <TouchableOpacity
                 key={count}
                 style={[
@@ -330,9 +365,22 @@ export const TestSetupScreen: React.FC<TestSetupScreenProps> = ({
             <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.startButton} onPress={handleStart}>
-            <Ionicons name="play" size={20} color="#FFF" />
-            <Text style={styles.startButtonText}>{t('test.start')}</Text>
+          <TouchableOpacity 
+            style={[styles.startButton, isStarting && styles.startButtonLoading]} 
+            onPress={handleStart}
+            disabled={isStarting}
+          >
+            {isStarting ? (
+              <>
+                <Ionicons name="hourglass" size={20} color="#FFF" />
+                <Text style={styles.startButtonText}>Starting...</Text>
+              </>
+            ) : (
+              <>
+                <Ionicons name="play" size={20} color="#FFF" />
+                <Text style={styles.startButtonText}>{t('test.start')}</Text>
+              </>
+            )}
           </TouchableOpacity>
         </View>
       </Animated.ScrollView>
@@ -354,6 +402,8 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
       paddingTop: 12,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
+      borderBottomLeftRadius: 16,
+      borderBottomRightRadius: 16,
       backgroundColor: colors.surface,
     },
     backButton: {
@@ -607,6 +657,9 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
       justifyContent: 'center',
       gap: 8,
     },
+    startButtonLoading: {
+      opacity: 0.7,
+    },
     startButtonText: {
       fontSize: 14,
       fontWeight: '700',
@@ -622,6 +675,9 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
       marginBottom: 24,
       borderWidth: 2,
       borderColor: colors.primary + '40',
+    },
+    previewButtonLoading: {
+      opacity: 0.6,
     },
     previewButtonContent: {
       flexDirection: 'row',

@@ -48,4 +48,31 @@ export const showToast = {
       topOffset: 50,
     });
   },
+  
+  confirm: (
+    message: string,
+    title: string,
+    onConfirm: () => void,
+    onCancel?: () => void,
+    options?: {
+      confirmText?: string;
+      cancelText?: string;
+    }
+  ) => {
+    Toast.show({
+      type: 'confirm',
+      text1: title,
+      text2: message,
+      position: 'bottom',
+      visibilityTime: 0,
+      autoHide: false,
+      bottomOffset: 80,
+      props: {
+        onConfirm,
+        onCancel,
+        confirmText: options?.confirmText,
+        cancelText: options?.cancelText,
+      },
+    });
+  },
 };

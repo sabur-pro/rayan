@@ -1,13 +1,12 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
+  FlatList,
   TouchableOpacity,
   TextInput,
   Animated,
-  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -75,17 +74,12 @@ export const TestPreviewScreen: React.FC<TestPreviewScreenProps> = ({
   const styles = createStyles(colors);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
   const [currentResultIndex, setCurrentResultIndex] = useState(0);
-  const scrollViewRef = useRef<ScrollView>(null);
-  const questionRefs = useRef<{ [key: number]: View | null }>({});
+  const flatListRef = useRef<FlatList>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.95)).current;
-  const spinAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Show content immediately without delay
-    setIsLoading(false);
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -99,21 +93,7 @@ export const TestPreviewScreen: React.FC<TestPreviewScreenProps> = ({
         useNativeDriver: true,
       }),
     ]).start();
-
-    // Spinning animation for loader
-    Animated.loop(
-      Animated.timing(spinAnim, {
-        toValue: 1,
-        duration: 1000,
-        useNativeDriver: true,
-      })
-    ).start();
   }, []);
-
-  const spin = spinAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
 
   // Filter questions based on simple case-insensitive search
   const filteredQuestions = useMemo(() => {
@@ -151,51 +131,89 @@ export const TestPreviewScreen: React.FC<TestPreviewScreenProps> = ({
 
   // Scroll to specific question
   const scrollToQuestion = (index: number) => {
-    const ref = questionRefs.current[index];
-    if (ref && scrollViewRef.current) {
-      ref.measureLayout(
-        scrollViewRef.current as any,
-        (x, y) => {
-          scrollViewRef.current?.scrollTo({ y: y - 100, animated: true });
-        },
-        () => {}
-      );
+    if (flatListRef.current && filteredQuestions.length > 0) {
+      try {
+        flatListRef.current.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
+      } catch (error) {
+        // Handle scroll error silently
+      }
     }
   };
 
+  // Render question item
+  const renderQuestionItem = useCallback(({ item: question, index }: { item: TestQuestion; index: number }) => {
+    const correctAnswerIndex = question.answers.findIndex(a => a.isCorrect);
+    
+    return (
+      <View style={styles.questionCard}>
+        <View style={styles.questionHeader}>
+          <View style={styles.questionNumber}>
+            <Text style={styles.questionNumberText}>{index + 1}</Text>
+          </View>
+          <Text style={styles.questionText}>
+            {highlightText(question.question, searchQuery)}
+          </Text>
+        </View>
+
+        <View style={styles.answersContainer}>
+          {question.answers.map((answer, ansIndex) => {
+            const isCorrect = ansIndex === correctAnswerIndex;
+            
+            return (
+              <View
+                key={ansIndex}
+                style={[
+                  styles.answerCard,
+                  isCorrect && styles.answerCardCorrect,
+                ]}
+              >
+                <View style={[
+                  styles.answerIcon,
+                  isCorrect && styles.answerIconCorrect,
+                ]}>
+                  {isCorrect ? (
+                    <Ionicons name="checkmark" size={18} color="#FFF" />
+                  ) : (
+                    <Text style={styles.answerLetter}>
+                      {String.fromCharCode(65 + ansIndex)}
+                    </Text>
+                  )}
+                </View>
+                <Text style={[
+                  styles.answerText,
+                  isCorrect && styles.answerTextCorrect,
+                ]}>
+                  {highlightText(answer.text, searchQuery)}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+      </View>
+    );
+  }, [searchQuery, styles]);
+
+  // Empty state component
+  const renderEmptyState = () => (
+    <View style={styles.emptyState}>
+      <Ionicons name="search" size={64} color={colors.textTertiary} />
+      <Text style={styles.emptyStateText}>{t('test.noQuestionsFound')}</Text>
+      <Text style={styles.emptyStateHint}>{t('test.tryDifferentSearch')}</Text>
+    </View>
+  );
+
+  // Key extractor
+  const keyExtractor = useCallback((item: TestQuestion) => item.id.toString(), []);
+
+  // Get item layout for better scroll performance
+  const getItemLayout = useCallback((data: any, index: number) => ({
+    length: 200, // Approximate height
+    offset: 200 * index,
+    index,
+  }), []);
+
   return (
     <View style={styles.container}>
-      {/* Loading Overlay with Blur */}
-      {isLoading && (
-        <View style={styles.loadingOverlay}>
-          <View style={styles.blurBackground} />
-          <View style={styles.loaderContainer}>
-            <Animated.View
-              style={[
-                styles.loaderCircle,
-                {
-                  transform: [{ rotate: spin }, { scale: scaleAnim }],
-                },
-              ]}
-            >
-              <View style={[styles.loaderRing, { borderTopColor: colors.primary }]} />
-            </Animated.View>
-            <ActivityIndicator
-              size="large"
-              color={colors.primary}
-              style={styles.loaderSpinner}
-            />
-            <Text style={[styles.loaderText, { color: colors.text }]}>
-              {t('test.loadingPreview')}
-            </Text>
-            <View style={styles.loaderDots}>
-              <Animated.View style={[styles.dot, { backgroundColor: colors.primary }]} />
-              <Animated.View style={[styles.dot, { backgroundColor: colors.primary }]} />
-              <Animated.View style={[styles.dot, { backgroundColor: colors.primary }]} />
-            </View>
-          </View>
-        </View>
-      )}
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={onBack}>
@@ -263,75 +281,31 @@ export const TestPreviewScreen: React.FC<TestPreviewScreenProps> = ({
       </View>
 
       {/* Questions List */}
-      <ScrollView 
-        ref={scrollViewRef}
-        style={styles.content} 
+      <FlatList
+        ref={flatListRef}
+        data={filteredQuestions}
+        renderItem={renderQuestionItem}
+        keyExtractor={keyExtractor}
+        ListEmptyComponent={renderEmptyState}
+        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
-      >
-        {filteredQuestions.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Ionicons name="search" size={64} color={colors.textTertiary} />
-            <Text style={styles.emptyStateText}>{t('test.noQuestionsFound')}</Text>
-            <Text style={styles.emptyStateHint}>{t('test.tryDifferentSearch')}</Text>
-          </View>
-        ) : (
-          filteredQuestions.map((question, index) => {
-            const correctAnswerIndex = question.answers.findIndex(a => a.isCorrect);
-            
-            return (
-              <View 
-                key={question.id} 
-                style={styles.questionCard}
-                ref={(ref) => { questionRefs.current[index] = ref; }}
-              >
-                <View style={styles.questionHeader}>
-                  <View style={styles.questionNumber}>
-                    <Text style={styles.questionNumberText}>{index + 1}</Text>
-                  </View>
-                  <Text style={styles.questionText}>
-                    {highlightText(question.question, searchQuery)}
-                  </Text>
-                </View>
-
-                <View style={styles.answersContainer}>
-                  {question.answers.map((answer, ansIndex) => {
-                    const isCorrect = ansIndex === correctAnswerIndex;
-                    
-                    return (
-                      <View
-                        key={ansIndex}
-                        style={[
-                          styles.answerCard,
-                          isCorrect && styles.answerCardCorrect,
-                        ]}
-                      >
-                        <View style={[
-                          styles.answerIcon,
-                          isCorrect && styles.answerIconCorrect,
-                        ]}>
-                          {isCorrect ? (
-                            <Ionicons name="checkmark" size={18} color="#FFF" />
-                          ) : (
-                            <Text style={styles.answerLetter}>
-                              {String.fromCharCode(65 + ansIndex)}
-                            </Text>
-                          )}
-                        </View>
-                        <Text style={[
-                          styles.answerText,
-                          isCorrect && styles.answerTextCorrect,
-                        ]}>
-                          {highlightText(answer.text, searchQuery)}
-                        </Text>
-                      </View>
-                    );
-                  })}
-                </View>
-              </View>
-            );
-          })
-        )}
-      </ScrollView>
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        updateCellsBatchingPeriod={50}
+        initialNumToRender={10}
+        windowSize={21}
+        onScrollToIndexFailed={(info) => {
+          // Handle scroll failure
+          setTimeout(() => {
+            if (flatListRef.current) {
+              flatListRef.current.scrollToOffset({
+                offset: info.averageItemLength * info.index,
+                animated: true,
+              });
+            }
+          }, 100);
+        }}
+      />
     </View>
   );
 };
@@ -350,6 +324,8 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
       paddingTop: 12,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
+      borderBottomLeftRadius: 16,
+      borderBottomRightRadius: 16,
       backgroundColor: colors.surface,
     },
     backButton: {
@@ -444,7 +420,6 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
       borderColor: colors.primary,
     },
     content: {
-      flex: 1,
       padding: 20,
     },
     emptyState: {
@@ -539,74 +514,5 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
     answerTextCorrect: {
       color: '#10B981',
       fontWeight: '700',
-    },
-    // Loader styles
-    loadingOverlay: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      zIndex: 1000,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    blurBackground: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: colors.background + 'E6',
-    },
-    loaderContainer: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: colors.surface,
-      borderRadius: 32,
-      padding: 48,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 12 },
-      shadowOpacity: 0.25,
-      shadowRadius: 24,
-      elevation: 16,
-      borderWidth: 2,
-      borderColor: colors.border,
-    },
-    loaderCircle: {
-      width: 120,
-      height: 120,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginBottom: 24,
-    },
-    loaderRing: {
-      width: 120,
-      height: 120,
-      borderRadius: 60,
-      borderWidth: 8,
-      borderColor: colors.border,
-      borderStyle: 'solid',
-    },
-    loaderSpinner: {
-      position: 'absolute',
-      top: 32,
-    },
-    loaderText: {
-      fontSize: 16,
-      fontWeight: '700',
-      marginTop: 16,
-      marginBottom: 12,
-    },
-    loaderDots: {
-      flexDirection: 'row',
-      gap: 8,
-      marginTop: 8,
-    },
-    dot: {
-      width: 10,
-      height: 10,
-      borderRadius: 5,
-      opacity: 0.8,
     },
   });

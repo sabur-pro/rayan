@@ -40,7 +40,14 @@
     "continue": "Continue",
     "all": "All",
     "materialTypes": "Material Types",
-    "noData": "No data"
+    "noData": "No data",
+    "loadingMore": "Loading more...",
+    "files": "files",
+    "daysAgo": "days ago",
+    "hoursAgo": "hours ago",
+    "justNow": "Just now",
+    "item": "item",
+    "items": "items"
   },
   "theme": {
     "light": "Light",
@@ -51,6 +58,16 @@
   "favorites": {
     "title": "Favorites",
     "viewFavorites": "View Favorites"
+  },
+  "favourites": {
+    "title": "Favorites",
+    "empty": "No favorites yet",
+    "emptyMessage": "Materials you mark as favorites will appear here",
+    "loadError": "Failed to load favorites",
+    "removeConfirm": "Are you sure you want to remove this material from your favorites?",
+    "removeTitle": "Remove Favorite",
+    "removed": "Material removed from favorites",
+    "removeError": "Failed to remove from favorites"
   },
   "profile": {
     "title": "Profile",
@@ -105,7 +122,10 @@
     "video": "Video",
     "material": "Material",
     "image": "Image",
-    "file": "File"
+    "file": "File",
+    "addedToFavourites": "Added to favorites",
+    "removedFromFavourites": "Removed from favorites",
+    "favouriteError": "Failed to update favorite"
   },
   "market": {
     "title": "Rayan Market",
@@ -252,6 +272,9 @@
     "skipped": "Skipped",
     "timeSpent": "Time Spent",
     "detailedResults": "Detailed Results",
+    "statistics": "Statistics",
+    "score": "Score",
+    "questions": "questions",
     "retryTest": "Retry",
     "close": "Close",
     "minutes": "m",

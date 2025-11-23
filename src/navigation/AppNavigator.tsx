@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createStackNavigator } from '@react-navigation/stack';
+import { NavigationContainer } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -49,7 +49,7 @@ export type MainTabParamList = {
 
 export type ProfileStackParamList = {
   Profile: undefined;
-  Favorites: undefined;
+  Favorites: { from?: 'home' | 'profile' };
 };
 
 export type MarketStackParamList = {
@@ -105,6 +105,8 @@ const MainNavigator = () => {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
           borderTopWidth: 1,
+          borderTopLeftRadius: 16,
+          borderTopRightRadius: 16,
           paddingBottom: 8,
           paddingTop: 8,
           height: 70,
@@ -134,6 +136,15 @@ const MainNavigator = () => {
         name="ProfileTab"
         component={ProfileNavigator}
         options={{ tabBarLabel: t('navigation.profile') }}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            e.preventDefault();
+            // Сбрасываем всю навигацию MainTab и устанавливаем ProfileTab с Profile экраном
+            navigation.navigate('ProfileTab', {
+              screen: 'Profile'
+            } as any);
+          },
+        })}
       />
     </MainTab.Navigator>
   );
@@ -236,6 +247,7 @@ const ProfileNavigator = () => {
 
   return (
     <ProfileStack.Navigator
+      initialRouteName="Profile"
       screenOptions={{
         headerShown: false,
         cardStyle: { backgroundColor: colors.background },
