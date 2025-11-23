@@ -201,6 +201,10 @@ export const FavoritesScreen: React.FC = () => {
     }
   };
 
+  const isMaterialDeleted = (item: FavouriteItem): boolean => {
+    return !item.material || !item.material.translation || !item.material.material_type?.translation;
+  };
+
   const getFileIcon = (paths?: string[]): string => {
     if (!paths || paths.length === 0) return 'document-outline';
     
@@ -250,6 +254,35 @@ export const FavoritesScreen: React.FC = () => {
   };
 
   const handleOpenMaterial = (item: FavouriteItem) => {
+    // Check if material still exists
+    if (isMaterialDeleted(item)) {
+      showToast.confirm(
+        t('favourites.materialDeleted') || 'This material may have been deleted. Would you like to remove it from favorites?',
+        t('favourites.materialNotFound') || 'Material Not Found',
+        async () => {
+          // User confirmed - remove from favorites
+          try {
+            await academicService.removeFavourite(item.id, accessToken!);
+            setFavorites(prev => prev.filter(fav => fav.id !== item.id));
+            showToast.success(
+              t('favourites.removed') || 'Item removed from favorites',
+              t('common.success') || 'Success'
+            );
+          } catch (error) {
+            console.error('Error removing deleted material from favourites:', error);
+            showToast.error(
+              t('favourites.removeError') || 'Failed to remove favourite',
+              t('common.error') || 'Error'
+            );
+          }
+        },
+        () => {
+          // User cancelled - do nothing
+        }
+      );
+      return;
+    }
+
     const materialDetail = convertToMaterialDetail(item.material);
     setSelectedMaterial(materialDetail);
     setSelectedTranslation(item.material.translation);
@@ -279,27 +312,33 @@ export const FavoritesScreen: React.FC = () => {
   };
 
   const renderFavoriteItem = (item: FavouriteItem, index: number) => {
+    const isDeleted = isMaterialDeleted(item);
+
     return (
       <View key={item.id} style={{ marginBottom: 16 }}>
         <TouchableOpacity 
-          style={styles.favoriteCard}
+          style={[styles.favoriteCard, isDeleted && styles.deletedCard]}
           activeOpacity={0.7}
           onPress={() => handleOpenMaterialWithTabHide(item)}
         >
       <View style={styles.favoriteHeader}>
-        <View style={styles.favoriteIcon}>
+        <View style={[styles.favoriteIcon, isDeleted && styles.deletedIcon]}>
           <Ionicons 
-            name={getFileIcon(item.material.translation.paths) as any} 
+            name={isDeleted ? 'alert-circle-outline' : getFileIcon(item.material?.translation?.paths) as any} 
             size={20} 
-            color={colors.primary} 
+            color={isDeleted ? colors.error : colors.primary} 
           />
         </View>
         <View style={styles.favoriteInfo}>
           <Text style={styles.favoriteTitle}>
-            {item.material.translation.name}
+            {isDeleted 
+              ? (t('favourites.deletedMaterial') || 'Deleted Material') 
+              : item.material.translation.name}
           </Text>
-          <Text style={styles.favoriteCategory}>
-            {item.material.material_type.translation.name}
+          <Text style={[styles.favoriteCategory, isDeleted && styles.deletedText]}>
+            {isDeleted 
+              ? (t('favourites.notAvailable') || 'Not available')
+              : item.material.material_type.translation.name}
           </Text>
         </View>
         <TouchableOpacity
@@ -312,14 +351,26 @@ export const FavoritesScreen: React.FC = () => {
           <Ionicons name="close" size={16} color={colors.error} />
         </TouchableOpacity>
       </View>
-      <Text style={styles.favoriteDescription}>
-        {item.material.translation.description}
-      </Text>
-      {item.material.translation.paths && item.material.translation.paths.length > 0 && (
-        <View style={styles.filesContainer}>
-          <Ionicons name="attach" size={14} color={colors.textSecondary} />
-          <Text style={styles.filesCount}>
-            {item.material.translation.paths.length} {t('common.files') || 'files'}
+      {!isDeleted && (
+        <>
+          <Text style={styles.favoriteDescription}>
+            {item.material.translation.description}
+          </Text>
+          {item.material.translation.paths && item.material.translation.paths.length > 0 && (
+            <View style={styles.filesContainer}>
+              <Ionicons name="attach" size={14} color={colors.textSecondary} />
+              <Text style={styles.filesCount}>
+                {item.material.translation.paths.length} {t('common.files') || 'files'}
+              </Text>
+            </View>
+          )}
+        </>
+      )}
+      {isDeleted && (
+        <View style={styles.deletedNotice}>
+          <Ionicons name="information-circle" size={16} color={colors.error} />
+          <Text style={styles.deletedNoticeText}>
+            {t('favourites.materialMayBeDeleted') || 'This material may have been deleted. Tap to remove from favorites.'}
           </Text>
         </View>
       )}
@@ -551,5 +602,32 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
     skeletonCard: {
       marginBottom: 16,
       paddingHorizontal: 20,
+    },
+    deletedCard: {
+      opacity: 0.7,
+      borderColor: colors.error + '40',
+      borderWidth: 1,
+      borderStyle: 'dashed',
+    },
+    deletedIcon: {
+      backgroundColor: colors.error + '20',
+    },
+    deletedText: {
+      color: colors.error,
+    },
+    deletedNotice: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.error + '10',
+      padding: 8,
+      borderRadius: 8,
+      marginBottom: 8,
+      gap: 8,
+    },
+    deletedNoticeText: {
+      flex: 1,
+      fontSize: 12,
+      color: colors.error,
+      lineHeight: 16,
     },
   });

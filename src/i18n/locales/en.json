@@ -67,7 +67,12 @@
     "removeConfirm": "Are you sure you want to remove this material from your favorites?",
     "removeTitle": "Remove Favorite",
     "removed": "Material removed from favorites",
-    "removeError": "Failed to remove from favorites"
+    "removeError": "Failed to remove from favorites",
+    "materialDeleted": "This material may have been deleted. Would you like to remove it from favorites?",
+    "materialNotFound": "Material Not Found",
+    "deletedMaterial": "Deleted Material",
+    "notAvailable": "Not available",
+    "materialMayBeDeleted": "This material may have been deleted. Tap to remove from favorites."
   },
   "profile": {
     "title": "Profile",

@@ -138,7 +138,12 @@
     "removeConfirm": "Bu materialni sevimlilardan o'chirmoqchimisiz?",
     "removeTitle": "Sevimlilardan o'chirish",
     "removed": "Material sevimlilardan o'chirildi",
-    "removeError": "Sevimlilardan o'chirish amalga oshmadi"
+    "removeError": "Sevimlilardan o'chirish amalga oshmadi",
+    "materialDeleted": "Bu material o'chirilgan bo'lishi mumkin. Uni sevimlilardan o'chirmoqchimisiz?",
+    "materialNotFound": "Material topilmadi",
+    "deletedMaterial": "O'chirilgan material",
+    "notAvailable": "Mavjud emas",
+    "materialMayBeDeleted": "Bu material o'chirilgan bo'lishi mumkin. Sevimlilardan o'chirish uchun bosing."
   },
     "title": "Sevimlilar",
     "viewFavorites": "Sevimlilarni ko'rish"
