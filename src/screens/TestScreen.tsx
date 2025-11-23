@@ -265,13 +265,6 @@ export const TestScreen: React.FC<TestScreenProps> = ({
     }, 150);
   };
 
-  const getQuestionStatusColor = (question: TestQuestion) => {
-    if (question.userAnswer !== undefined) {
-      return colors.primary;
-    }
-    return colors.border;
-  };
-
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -346,8 +339,10 @@ export const TestScreen: React.FC<TestScreenProps> = ({
               const isSelected = currentQuestion.userAnswer === index;
               const isShowingFeedback = showFeedback && selectedAnswerIndex === index;
               const isCorrect = answer.isCorrect;
-              const isWrong = isShowingFeedback && !isCorrect;
-              const isRight = isShowingFeedback && isCorrect;
+              // Показываем обратную связь если это текущий выбор ИЛИ если возвращаемся к уже отвеченному вопросу
+              const shouldShowFeedback = isShowingFeedback || (isSelected && !showFeedback && currentQuestion.userAnswer !== undefined);
+              const isWrong = shouldShowFeedback && !isCorrect;
+              const isRight = shouldShowFeedback && isCorrect;
               // Если уже есть выбранный ответ, блокируем все остальные
               const isDisabled = currentQuestion.userAnswer !== undefined;
               
@@ -364,7 +359,6 @@ export const TestScreen: React.FC<TestScreenProps> = ({
                   <TouchableOpacity
                     style={[
                       styles.answerCard,
-                      isSelected && !showFeedback && styles.answerCardSelected,
                       isRight && styles.answerCardCorrect,
                       isWrong && styles.answerCardWrong,
                     ]}
@@ -374,17 +368,14 @@ export const TestScreen: React.FC<TestScreenProps> = ({
                   >
                     <View style={[
                       styles.radio,
-                      isSelected && !showFeedback && styles.radioSelected,
                       isRight && styles.radioCorrect,
                       isWrong && styles.radioWrong,
                     ]}>
-                      {isSelected && !showFeedback && <View style={styles.radioDot} />}
                       {isRight && <Ionicons name="checkmark" size={16} color="#fff" />}
                       {isWrong && <Ionicons name="close" size={16} color="#fff" />}
                     </View>
                     <Text style={[
                       styles.answerText,
-                      isSelected && !showFeedback && styles.answerTextSelected,
                       isRight && styles.answerTextCorrect,
                       isWrong && styles.answerTextWrong,
                     ]}>
@@ -406,26 +397,33 @@ export const TestScreen: React.FC<TestScreenProps> = ({
             numColumns={7}
             scrollEnabled={false}
             contentContainerStyle={styles.navigationGrid}
-            renderItem={({ item: question, index }) => (
-              <TouchableOpacity
-                style={[
-                  styles.navButton,
-                  index === currentQuestionIndex && styles.navButtonActive,
-                  question.userAnswer !== undefined && styles.navButtonAnswered,
-                ]}
-                onPress={() => jumpToQuestion(index)}
-              >
-                <Text
+            renderItem={({ item: question, index }) => {
+              const isAnswered = question.userAnswer !== undefined;
+              const isCorrectAnswer = isAnswered && question.userAnswer !== undefined && question.answers[question.userAnswer].isCorrect;
+              const isWrongAnswer = isAnswered && question.userAnswer !== undefined && !question.answers[question.userAnswer].isCorrect;
+              
+              return (
+                <TouchableOpacity
                   style={[
-                    styles.navButtonText,
-                    (index === currentQuestionIndex || question.userAnswer !== undefined) &&
-                      styles.navButtonTextActive,
+                    styles.navButton,
+                    index === currentQuestionIndex && styles.navButtonActive,
+                    isCorrectAnswer && styles.navButtonCorrect,
+                    isWrongAnswer && styles.navButtonWrong,
                   ]}
+                  onPress={() => jumpToQuestion(index)}
                 >
-                  {index + 1}
-                </Text>
-              </TouchableOpacity>
-            )}
+                  <Text
+                    style={[
+                      styles.navButtonText,
+                      (index === currentQuestionIndex || isAnswered) &&
+                        styles.navButtonTextActive,
+                    ]}
+                  >
+                    {index + 1}
+                  </Text>
+                </TouchableOpacity>
+              );
+            }}
             maxToRenderPerBatch={35}
             initialNumToRender={35}
             windowSize={5}
@@ -696,6 +694,14 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
     navButtonAnswered: {
       borderColor: colors.primary,
       backgroundColor: colors.primary,
+    },
+    navButtonCorrect: {
+      borderColor: '#10B981',
+      backgroundColor: '#10B981',
+    },
+    navButtonWrong: {
+      borderColor: '#EF4444',
+      backgroundColor: '#EF4444',
     },
     navButtonText: {
       fontSize: 12,

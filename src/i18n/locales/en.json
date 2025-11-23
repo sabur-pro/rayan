@@ -72,7 +72,11 @@
     "materialNotFound": "Material Not Found",
     "deletedMaterial": "Deleted Material",
     "notAvailable": "Not available",
-    "materialMayBeDeleted": "This material may have been deleted. Tap to remove from favorites."
+    "materialMayBeDeleted": "This material may have been deleted. Tap to remove from favorites.",
+    "noTranslationMessage": "This material was added to favorites in another language or has been deleted. Would you like to remove it from favorites?",
+    "noTranslationTitle": "No Translation Available",
+    "noTranslationDescription": "This material was added to favorites in another language or has been deleted",
+    "addedInAnotherLanguage": "Added to favorites in another language. Tap to remove."
   },
   "profile": {
     "title": "Profile",

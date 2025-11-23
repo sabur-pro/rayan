@@ -5,7 +5,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import { lightTheme, darkTheme } from '../theme/colors';
+import { getThemeColors } from '../theme/colors';
 
 // Screens
 import { WelcomeScreen } from '../screens/WelcomeScreen';
@@ -66,7 +66,7 @@ const MarketStack = createStackNavigator<MarketStackParamList>();
 
 const AuthNavigator = () => {
   const { theme } = useTheme();
-  const colors = theme === 'dark' ? darkTheme : lightTheme;
+  const colors = getThemeColors(theme);
 
   return (
     <AuthStack.Navigator
@@ -85,7 +85,7 @@ const AuthNavigator = () => {
 const MainNavigator = () => {
   const { theme } = useTheme();
   const { t } = useTranslation();
-  const colors = theme === 'dark' ? darkTheme : lightTheme;
+  const colors = getThemeColors(theme);
 
   return (
     <MainTab.Navigator
@@ -225,7 +225,7 @@ const ProfileScreenWrapper = ({ navigation }: any) => {
 
 const MarketNavigator = () => {
   const { theme } = useTheme();
-  const colors = theme === 'dark' ? darkTheme : lightTheme;
+  const colors = getThemeColors(theme);
 
   return (
     <MarketStack.Navigator
@@ -243,7 +243,7 @@ const MarketNavigator = () => {
 
 const ProfileNavigator = () => {
   const { theme } = useTheme();
-  const colors = theme === 'dark' ? darkTheme : lightTheme;
+  const colors = getThemeColors(theme);
 
   return (
     <ProfileStack.Navigator
@@ -279,7 +279,7 @@ export const AppNavigator = () => {
   const { theme } = useTheme();
   const { isLanguageSelected } = useLanguage();
   const { isAuthenticated, needsSubscription, completeWelcome } = useAuth();
-  const colors = theme === 'dark' ? darkTheme : lightTheme;
+  const colors = getThemeColors(theme);
 
   const navigationTheme = useMemo(
     () => ({

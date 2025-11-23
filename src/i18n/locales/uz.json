@@ -143,7 +143,11 @@
     "materialNotFound": "Material topilmadi",
     "deletedMaterial": "O'chirilgan material",
     "notAvailable": "Mavjud emas",
-    "materialMayBeDeleted": "Bu material o'chirilgan bo'lishi mumkin. Sevimlilardan o'chirish uchun bosing."
+    "materialMayBeDeleted": "Bu material o'chirilgan bo'lishi mumkin. Sevimlilardan o'chirish uchun bosing.",
+    "noTranslationMessage": "Bu material boshqa tilda sevimligalarga qo'shilgan yoki o'chirilgan. Uni sevimlilardan o'chirmoqchimisiz?",
+    "noTranslationTitle": "Tarjima mavjud emas",
+    "noTranslationDescription": "Bu material boshqa tilda sevimligalarga qo'shilgan yoki o'chirilgan",
+    "addedInAnotherLanguage": "Boshqa tilda sevimligalarga qo'shilgan. O'chirish uchun bosing."
   },
     "title": "Sevimlilar",
     "viewFavorites": "Sevimlilarni ko'rish"

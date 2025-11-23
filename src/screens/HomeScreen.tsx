@@ -55,8 +55,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   
   // Animations
-  const headerFadeAnim = React.useRef(new Animated.Value(0)).current;
-  const headerSlideAnim = React.useRef(new Animated.Value(-30)).current;
+  const headerFadeAnim = React.useRef(new Animated.Value(1)).current;
+  const headerSlideAnim = React.useRef(new Animated.Value(0)).current;
   const contentFadeAnim = React.useRef(new Animated.Value(0)).current;
   const contentSlideAnim = React.useRef(new Animated.Value(50)).current;
   

@@ -8,8 +8,8 @@ import {
   RefreshControl,
   Animated,
   BackHandler,
-  SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../contexts/ThemeContext';
@@ -202,7 +202,9 @@ export const FavoritesScreen: React.FC = () => {
   };
 
   const isMaterialDeleted = (item: FavouriteItem): boolean => {
-    return !item.material || !item.material.translation || !item.material.material_type?.translation;
+    // Material is only deleted if the material object or material_type is missing
+    // Missing translation just means it's not available in current language
+    return !item.material || !item.material.material_type?.translation;
   };
 
   const getFileIcon = (paths?: string[]): string => {
@@ -240,13 +242,13 @@ export const FavoritesScreen: React.FC = () => {
       },
       created_at: favMaterial.created_at,
       updated_at: favMaterial.updated_at,
-      translations: [{
+      translations: favMaterial.translation ? [{
         lang_code: favMaterial.translation.lang_code,
         name: favMaterial.translation.name,
         description: favMaterial.translation.description,
         paths: favMaterial.translation.paths,
         status: favMaterial.translation.status,
-      }],
+      }] : [],
       subjects: [],
       is_favourite: true,
       favourite_id: undefined,
@@ -254,11 +256,21 @@ export const FavoritesScreen: React.FC = () => {
   };
 
   const handleOpenMaterial = (item: FavouriteItem) => {
-    // Check if material still exists
-    if (isMaterialDeleted(item)) {
+    // Check if material still exists or has translation
+    const isDeleted = isMaterialDeleted(item);
+    const hasNoTranslation = !isDeleted && !item.material.translation;
+    
+    if (isDeleted || hasNoTranslation) {
+      const message = hasNoTranslation
+        ? t('favourites.noTranslationMessage') || 'This material was added to favorites in another language or has been deleted. Would you like to remove it from favorites?'
+        : t('favourites.materialDeleted') || 'This material may have been deleted. Would you like to remove it from favorites?';
+      const title = hasNoTranslation
+        ? t('favourites.noTranslationTitle') || 'No Translation Available'
+        : t('favourites.materialNotFound') || 'Material Not Found';
+      
       showToast.confirm(
-        t('favourites.materialDeleted') || 'This material may have been deleted. Would you like to remove it from favorites?',
-        t('favourites.materialNotFound') || 'Material Not Found',
+        message,
+        title,
         async () => {
           // User confirmed - remove from favorites
           try {
@@ -285,7 +297,9 @@ export const FavoritesScreen: React.FC = () => {
 
     const materialDetail = convertToMaterialDetail(item.material);
     setSelectedMaterial(materialDetail);
-    setSelectedTranslation(item.material.translation);
+    if (item.material.translation) {
+      setSelectedTranslation(item.material.translation);
+    }
   };
 
   const handleCloseMaterial = () => {
@@ -313,27 +327,34 @@ export const FavoritesScreen: React.FC = () => {
 
   const renderFavoriteItem = (item: FavouriteItem, index: number) => {
     const isDeleted = isMaterialDeleted(item);
+    const hasTranslation = !isDeleted && !!item.material.translation;
+    const materialName = hasTranslation && item.material.translation
+      ? item.material.translation.name 
+      : `${item.material.material_type.translation.name} #${item.material.id}`;
+    const materialDescription = hasTranslation && item.material.translation
+      ? item.material.translation.description
+      : t('favourites.noTranslationDescription') || 'This material was added to favorites in another language or has been deleted';
 
     return (
       <View key={item.id} style={{ marginBottom: 16 }}>
         <TouchableOpacity 
-          style={[styles.favoriteCard, isDeleted && styles.deletedCard]}
+          style={[styles.favoriteCard, isDeleted && styles.deletedCard, !hasTranslation && !isDeleted && styles.noTranslationCard]}
           activeOpacity={0.7}
-          onPress={() => handleOpenMaterialWithTabHide(item)}
+          onPress={() => hasTranslation ? handleOpenMaterialWithTabHide(item) : handleOpenMaterial(item)}
         >
       <View style={styles.favoriteHeader}>
-        <View style={[styles.favoriteIcon, isDeleted && styles.deletedIcon]}>
+        <View style={[styles.favoriteIcon, isDeleted && styles.deletedIcon, !hasTranslation && !isDeleted && styles.noTranslationIcon]}>
           <Ionicons 
-            name={isDeleted ? 'alert-circle-outline' : getFileIcon(item.material?.translation?.paths) as any} 
+            name={isDeleted ? 'alert-circle-outline' : (!hasTranslation ? 'language-outline' : getFileIcon(item.material?.translation?.paths)) as any} 
             size={20} 
-            color={isDeleted ? colors.error : colors.primary} 
+            color={isDeleted ? colors.error : (!hasTranslation ? colors.warning : colors.primary)} 
           />
         </View>
         <View style={styles.favoriteInfo}>
           <Text style={styles.favoriteTitle}>
             {isDeleted 
               ? (t('favourites.deletedMaterial') || 'Deleted Material') 
-              : item.material.translation.name}
+              : materialName}
           </Text>
           <Text style={[styles.favoriteCategory, isDeleted && styles.deletedText]}>
             {isDeleted 
@@ -353,14 +374,14 @@ export const FavoritesScreen: React.FC = () => {
       </View>
       {!isDeleted && (
         <>
-          <Text style={styles.favoriteDescription}>
-            {item.material.translation.description}
+          <Text style={[styles.favoriteDescription, !hasTranslation && styles.noTranslationText]}>
+            {materialDescription}
           </Text>
-          {item.material.translation.paths && item.material.translation.paths.length > 0 && (
+          {hasTranslation && item.material.translation!.paths && item.material.translation!.paths.length > 0 && (
             <View style={styles.filesContainer}>
               <Ionicons name="attach" size={14} color={colors.textSecondary} />
               <Text style={styles.filesCount}>
-                {item.material.translation.paths.length} {t('common.files') || 'files'}
+                {item.material.translation!.paths.length} {t('common.files') || 'files'}
               </Text>
             </View>
           )}
@@ -371,6 +392,14 @@ export const FavoritesScreen: React.FC = () => {
           <Ionicons name="information-circle" size={16} color={colors.error} />
           <Text style={styles.deletedNoticeText}>
             {t('favourites.materialMayBeDeleted') || 'This material may have been deleted. Tap to remove from favorites.'}
+          </Text>
+        </View>
+      )}
+      {!isDeleted && !hasTranslation && (
+        <View style={styles.noTranslationNotice}>
+          <Ionicons name="language-outline" size={16} color={colors.warning || '#f59e0b'} />
+          <Text style={styles.noTranslationNoticeText}>
+            {t('favourites.addedInAnotherLanguage') || 'Added to favorites in another language. Tap to remove.'}
           </Text>
         </View>
       )}
@@ -461,7 +490,6 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
     },
     header: {
       paddingHorizontal: 20,
-      paddingTop: 48,
       paddingBottom: 16,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
@@ -628,6 +656,33 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
       flex: 1,
       fontSize: 12,
       color: colors.error,
+      lineHeight: 16,
+    },
+    noTranslationCard: {
+      opacity: 0.8,
+      borderColor: (colors.warning || '#f59e0b') + '40',
+      borderWidth: 1,
+    },
+    noTranslationIcon: {
+      backgroundColor: (colors.warning || '#f59e0b') + '20',
+    },
+    noTranslationText: {
+      fontStyle: 'italic',
+      color: colors.textTertiary,
+    },
+    noTranslationNotice: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: (colors.warning || '#f59e0b') + '10',
+      padding: 8,
+      borderRadius: 8,
+      marginBottom: 8,
+      gap: 8,
+    },
+    noTranslationNoticeText: {
+      flex: 1,
+      fontSize: 12,
+      color: colors.warning || '#f59e0b',
       lineHeight: 16,
     },
   });
