@@ -2,7 +2,7 @@
   "build": {
     "preview": {
       "android": {
-        "buildType": "apk"
+        "buildType": "app-bundle"
       },
       "env": {
         "NPM_CONFIG_LEGACY_PEER_DEPS": "true"
@@ -10,25 +10,34 @@
     },
     "preview2": {
       "android": {
-        "gradleCommand": ":app:assembleRelease"
+        "gradleCommand": ":app:bundleRelease"
       },
       "env": {
         "NPM_CONFIG_LEGACY_PEER_DEPS": "true"
       }
     },
     "preview3": {
-      "developmentClient": true,
+      "developmentClient": false,
+      "android": {
+        "buildType": "app-bundle"
+      },
       "env": {
         "NPM_CONFIG_LEGACY_PEER_DEPS": "true"
       }
     },
     "preview4": {
       "distribution": "internal",
+      "android": {
+        "buildType": "app-bundle"
+      },
       "env": {
         "NPM_CONFIG_LEGACY_PEER_DEPS": "true"
       }
     },
     "production": {
+      "android": {
+        "buildType": "app-bundle"
+      },
       "env": {
         "NPM_CONFIG_LEGACY_PEER_DEPS": "true"
       }

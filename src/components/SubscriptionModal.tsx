@@ -52,6 +52,11 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
 
   // Determine modal state
   const getModalState = () => {
+    // If subscription is rejected
+    if (subscription && subscription.status === 'rejected') {
+      return 'rejected';
+    }
+    
     // If subscription is pending
     if (subscription && subscription.status === 'pending') {
       return 'pending';
@@ -152,6 +157,53 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
             >
               <Ionicons name="card-outline" size={20} color="#ffffff" />
               <Text style={styles.buttonText}>{t('subscription.buySubscription')}</Text>
+            </TouchableOpacity>
+          </View>
+        );
+
+      case 'rejected':
+        return (
+          <View style={styles.content}>
+            <View style={styles.iconContainer}>
+              <Ionicons name="close-circle-outline" size={64} color={colors.error || '#F44336'} />
+            </View>
+            <Text style={styles.title}>{t('subscription.rejectedTitle')}</Text>
+            <Text style={styles.message}>{t('subscription.rejectedMessage')}</Text>
+
+            <View style={styles.infoBox}>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>{t('subscription.price')}:</Text>
+                <Text style={styles.infoValue}>{subscription?.price} TJS</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>{t('subscription.status')}:</Text>
+                <Text style={[styles.infoValue, styles.rejectedStatus]}>
+                  {t('subscription.rejectedTitle')}
+                </Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.button, styles.buyButton]}
+              onPress={onBuySubscription}
+            >
+              <Ionicons name="refresh-outline" size={20} color="#ffffff" />
+              <Text style={styles.buttonText}>{t('subscription.resubscribe')}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.button, styles.refreshButton, isRefreshing && styles.buttonDisabled]}
+              onPress={handleRefresh}
+              disabled={isRefreshing}
+            >
+              {isRefreshing ? (
+                <ActivityIndicator color="#ffffff" />
+              ) : (
+                <>
+                  <Ionicons name="refresh" size={20} color="#ffffff" />
+                  <Text style={styles.buttonText}>{t('subscription.refresh')}</Text>
+                </>
+              )}
             </TouchableOpacity>
           </View>
         );
@@ -261,6 +313,9 @@ const createStyles = (colors: ReturnType<typeof getThemeColors>) =>
     },
     pendingStatus: {
       color: colors.warning || '#FFA500',
+    },
+    rejectedStatus: {
+      color: colors.error || '#F44336',
     },
     successStatus: {
       color: colors.success || '#4CAF50',

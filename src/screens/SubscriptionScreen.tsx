@@ -42,11 +42,11 @@ const formatRemainingTime = (daysRemaining: number): { days: number; hours: numb
   const now = new Date();
   const endDate = new Date(now.getTime() + daysRemaining * 24 * 60 * 60 * 1000);
   const diff = endDate.getTime() - now.getTime();
-  
+
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
   const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
   const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-  
+
   return { days, hours, minutes };
 };
 
@@ -108,8 +108,8 @@ export const SubscriptionScreen: React.FC<SubscriptionScreenProps> = ({
 
   // Show modal when needed
   useEffect(() => {
-    // Only show modal for pending subscriptions, not for free trial
-    if (subscription?.status === 'pending') {
+    // Show modal for pending or rejected subscriptions
+    if (subscription?.status === 'pending' || subscription?.status === 'rejected') {
       setShowModal(true);
     } else {
       setShowModal(false);
@@ -123,7 +123,7 @@ export const SubscriptionScreen: React.FC<SubscriptionScreenProps> = ({
   const handlePickImage = async () => {
     try {
       const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      
+
       if (!permissionResult.granted) {
         Alert.alert(t('subscription.error'), 'Permission to access gallery is required!');
         return;
@@ -167,7 +167,7 @@ export const SubscriptionScreen: React.FC<SubscriptionScreenProps> = ({
       // Calculate end date
       const endDate = new Date();
       endDate.setDate(endDate.getDate() + selectedPlan.duration);
-      
+
       // Prepare image for upload
       const imageUri = selectedImage.uri;
       const filename = imageUri.split('/').pop() || 'photo.jpg';
@@ -195,7 +195,7 @@ export const SubscriptionScreen: React.FC<SubscriptionScreenProps> = ({
 
       // Обновляем статус подписки через onRefreshStatus
       await onRefreshStatus();
-      
+
       // Показываем модалку pending - не переходим в приложение
       setShowModal(true);
     } catch (error: any) {
@@ -257,12 +257,12 @@ export const SubscriptionScreen: React.FC<SubscriptionScreenProps> = ({
         {!selectedPlan ? (
           <View style={styles.plansContainer}>
             <Text style={styles.sectionTitle}>{t('subscription.selectPlan')}</Text>
-            {SUBSCRIPTION_PLANS.map((plan: SubscriptionPlan) => (
+            {SUBSCRIPTION_PLANS.map((plan) => (
               <TouchableOpacity
                 key={plan.id}
                 style={[
                   styles.planCard,
-                  selectedPlan?.id === plan.id && styles.planCardSelected,
+                  selectedPlan && selectedPlan.id === plan.id && styles.planCardSelected,
                 ]}
                 onPress={() => handleSelectPlan(plan)}
               >
@@ -319,7 +319,7 @@ export const SubscriptionScreen: React.FC<SubscriptionScreenProps> = ({
                 <Ionicons name="information-circle" size={24} color={colors.primary} />
                 <Text style={styles.instructionsTitle}>{t('subscription.paymentInstructions')}</Text>
               </View>
-              
+
               <View style={styles.instructionsContent}>
                 <Text style={styles.instructionStep}>
                   {t('subscription.paymentStep1', { price: selectedPlan.price })}
@@ -388,7 +388,7 @@ export const SubscriptionScreen: React.FC<SubscriptionScreenProps> = ({
           </View>
         )}
       </ScrollView>
-      
+
       {/* Subscription Modal Overlay - показывается поверх всего когда pending */}
       <SubscriptionModal
         visible={showModal}

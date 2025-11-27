@@ -47,7 +47,8 @@
     "hoursAgo": "hours ago",
     "justNow": "Just now",
     "item": "item",
-    "items": "items"
+    "items": "items",
+    "yesterday": "Yesterday"
   },
   "theme": {
     "light": "Light",
@@ -296,5 +297,41 @@
     "noQuestionsFound": "No questions found",
     "tryDifferentSearch": "Try a different search query",
     "loadingPreview": "Loading preview..."
+  },
+  "chat": {
+    "welcomeTitle": "Hi! I'm Rayan AI 👋",
+    "welcomeSubtitle": "How can I help you?",
+    "askBySubject": "Ask about a subject",
+    "askBySubjectDesc": "Select material for accurate answers",
+    "askGeneral": "Just ask a question",
+    "askGeneralDesc": "General questions without material",
+    "generalChat": "General Chat",
+    "generalChatSubtitle": "Ask any question",
+    "selectSubject": "Select Subject",
+    "selectMaterialType": "Select Material Type",
+    "selectMaterial": "Select Material",
+    "selectMaterialForChat": "To start AI chat",
+    "errorLoadingSubjects": "Failed to load subjects",
+    "errorLoadingMaterialTypes": "Failed to load material types",
+    "errorLoadingMaterials": "Failed to load materials",
+    "noMaterialPath": "Material has no files",
+    "noItemsAvailable": "No items available yet",
+    "chatSession": "Chat session",
+    "newChat": "New chat",
+    "startConversation": "Start Conversation",
+    "askAboutMaterial": "Ask a question about the material",
+    "askAnything": "Ask any question",
+    "typeYourQuestion": "Type your question...",
+    "stopGenerating": "Stop",
+    "errorSendingMessage": "Failed to send message",
+    "noFileUrl": "Material has no file link",
+    "history": "Chat History",
+    "noHistory": "Chat history is empty",
+    "messages": "messages",
+    "loadMore": "Load more",
+    "errorLoadingMessages": "Failed to load messages",
+    "aiThinking": "Rayan AI is thinking",
+    "thinking": "thinking",
+    "typing": "typing"
   }
 }

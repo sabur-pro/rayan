@@ -47,7 +47,8 @@
     "hoursAgo": "часов назад",
     "justNow": "Только что",
     "item": "элемент",
-    "items": "элементов"
+    "items": "элементов",
+    "yesterday": "Вчера"
   },
   "theme": {
     "light": "Светлая",
@@ -232,7 +233,10 @@
     "12_months_desc": "Лучшее соотношение цены",
     "timeRemaining": "Осталось: {{days}} дн. {{hours}} ч. {{minutes}} мин.",
     "hours": "ч.",
-    "minutes": "мин."
+    "minutes": "мин.",
+    "rejectedTitle": "Подписка отклонена",
+    "rejectedMessage": "К сожалению, ваша подписка была отклонена. Пожалуйста, проверьте правильность оплаты и попробуйте снова.",
+    "resubscribe": "Оформить заново"
   },
   "test": {
     "setup": "Настройка теста",
@@ -296,5 +300,41 @@
     "noQuestionsFound": "Вопросы не найдены",
     "tryDifferentSearch": "Попробуйте изменить поисковый запрос",
     "loadingPreview": "Загрузка предпросмотра..."
+  },
+  "chat": {
+    "welcomeTitle": "Привет! Я Rayan AI ",
+    "welcomeSubtitle": "Как я могу вам помочь?",
+    "askBySubject": "Задать вопрос по предмету",
+    "askBySubjectDesc": "Выберите материал для точного ответа",
+    "askGeneral": "Просто задать вопрос",
+    "askGeneralDesc": "Общие вопросы без привязки к материалу",
+    "generalChat": "Общий чат",
+    "generalChatSubtitle": "Задайте любой вопрос",
+    "selectSubject": "Выберите предмет",
+    "selectMaterialType": "Выберите тип материала",
+    "selectMaterial": "Выберите материал",
+    "selectMaterialForChat": "Для начала чата с AI",
+    "errorLoadingSubjects": "Не удалось загрузить предметы",
+    "errorLoadingMaterialTypes": "Не удалось загрузить типы материалов",
+    "errorLoadingMaterials": "Не удалось загрузить материалы",
+    "noMaterialPath": "У материала нет файлов",
+    "noItemsAvailable": "Элементы пока не доступны",
+    "chatSession": "Сессия чата",
+    "newChat": "Новый чат",
+    "startConversation": "Начните разговор",
+    "askAboutMaterial": "Задайте вопрос по материалу",
+    "askAnything": "Задайте любой вопрос",
+    "typeYourQuestion": "Введите ваш вопрос...",
+    "stopGenerating": "Остановить",
+    "errorSendingMessage": "Не удалось отправить сообщение",
+    "noFileUrl": "У материала нет ссылки на файл",
+    "history": "История чатов",
+    "noHistory": "История чатов пуста",
+    "messages": "сообщений",
+    "loadMore": "Загрузить ещё",
+    "errorLoadingMessages": "Не удалось загрузить сообщения",
+    "aiThinking": "Rayan AI думает",
+    "thinking": "думает",
+    "typing": "печатает"
   }
 }

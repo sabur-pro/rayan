@@ -58,7 +58,25 @@ export const Skeleton: React.FC<SkeletonProps> = ({
   );
 };
 
-// Material Type Card Skeleton
+// Subject Card Skeleton (for AI Assistant)
+export const SubjectCardSkeleton: React.FC = () => {
+  const { theme } = useTheme();
+  const colors = getThemeColors(theme);
+  const styles = createStyles(colors);
+
+  return (
+    <View style={styles.card}>
+      <Skeleton width={56} height={56} borderRadius={28} />
+      <View style={styles.cardContent}>
+        <Skeleton width="85%" height={18} borderRadius={9} style={{ marginBottom: 6 }} />
+        <Skeleton width="60%" height={14} borderRadius={7} />
+      </View>
+      <Skeleton width={32} height={32} borderRadius={16} />
+    </View>
+  );
+};
+
+// Material Type Card Skeleton (for AI Assistant)
 export const MaterialTypeCardSkeleton: React.FC = () => {
   const { theme } = useTheme();
   const colors = getThemeColors(theme);
